@@ -12,15 +12,32 @@ const Notes = () => {
     }, []);
 
     const fetchNotes = async () => {
-        const response = await axios.get('/api/notes/');
-        setNotes(response.data);
+        try {
+            const response = await axios.get(
+                `${process.env.REACT_APP_API_URL}/api/notes/`
+            );
+            setNotes(response.data);
+        } catch (error) {
+            console.error('Failed to fetch notes:', error);
+        }
     };
 
     const addNote = async () => {
-        const response = await axios.post('/api/notes/', { title, content });
-        setNotes([...notes, response.data]);
-        setTitle('');
-        setContent('');
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_API_URL}/api/notes/`,
+                {
+                    title,
+                    content
+                }
+            );
+
+            setNotes([...notes, response.data]);
+            setTitle('');
+            setContent('');
+        } catch (error) {
+            console.error('Failed to add note:', error);
+        }
     };
 
     return (
