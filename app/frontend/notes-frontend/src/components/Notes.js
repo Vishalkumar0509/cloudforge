@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
     TextField,
@@ -12,6 +12,8 @@ import {
     Paper,
 } from '@mui/material';
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 const Notes = () => {
     const [notes, setNotes] = useState([]);
     const [title, setTitle] = useState('');
@@ -19,13 +21,7 @@ const Notes = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const API_URL = process.env.REACT_APP_API_URL;
-
-    useEffect(() => {
-        fetchNotes();
-    }, []);
-
-    const fetchNotes = async () => {
+    const fetchNotes = useCallback(async () => {
         try {
             setLoading(true);
             setError('');
@@ -55,7 +51,11 @@ const Notes = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchNotes();
+    }, [fetchNotes]);
 
     const addNote = async (event) => {
         event.preventDefault();
@@ -138,9 +138,7 @@ const Notes = () => {
                                 fullWidth
                                 label="Title"
                                 value={title}
-                                onChange={(e) =>
-                                    setTitle(e.target.value)
-                                }
+                                onChange={(e) => setTitle(e.target.value)}
                                 variant="outlined"
                             />
 
@@ -150,9 +148,7 @@ const Notes = () => {
                                 multiline
                                 rows={4}
                                 value={content}
-                                onChange={(e) =>
-                                    setContent(e.target.value)
-                                }
+                                onChange={(e) => setContent(e.target.value)}
                                 variant="outlined"
                             />
 
