@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
-RUN chmod +x entrypoint.sh
+RUN sed -i 's/\r$//' entrypoint.sh \
+    && chmod +x entrypoint.sh
 
 EXPOSE 8000
 

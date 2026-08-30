@@ -16,18 +16,22 @@ services:
       - cloudforge-postgres-data:/var/lib/postgresql/data
 
     networks:
-      - cloudforge-network
+      - cloudforge
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
+
+    restart: unless-stopped
 
 
   backend:
     build:
       context: ./app/backend
+      dockerfile: Dockerfile
 
     container_name: cloudforge-backend
 
@@ -35,8 +39,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USERNAME: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
 
     ports:
       - "8000:8000"
@@ -46,18 +50,17 @@ services:
         condition: service_healthy
 
     networks:
-      - cloudforge-network
+      - cloudforge
 
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/notes/')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    restart: unless-stopped
 
 
   frontend:
     build:
       context: ./app/frontend/notes-frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://localhost:8000
 
     container_name: cloudforge-frontend
 
@@ -66,16 +69,20 @@ services:
 
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
 
     networks:
-      - cloudforge-network
+      - cloudforge
+
+    restart: unless-stopped
 
 
 volumes:
   cloudforge-postgres-data:
+    name: cloudforge-postgres-data
 
 
 networks:
-  cloudforge-network:
+  cloudforge:
+    name: cloudforge
     driver: bridge
