@@ -21,4 +21,4 @@ echo "Running Django migrations..."
 python manage.py migrate
 
 echo "Starting Django..."
-exec python manage.py runserver 0.0.0.0:8000
+exec gunicorn --bind 0.0.0.0:8000 core.wsgi:application
