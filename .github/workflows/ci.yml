@@ -61,7 +61,7 @@ jobs:
       - name: Build React application
         working-directory: app/frontend/notes-frontend
         env:
-          REACT_APP_API_URL: http://localhost:8000
+          REACT_APP_API_URL: ''
         run: npm run build
 
 
@@ -131,4 +131,4 @@ jobs:
           tags: ${{ steps.frontend-meta.outputs.tags }}
           labels: ${{ steps.frontend-meta.outputs.labels }}
           build-args: |
-            REACT_APP_API_URL=http://localhost:8000
+            REACT_APP_API_URL=
