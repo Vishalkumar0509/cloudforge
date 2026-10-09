@@ -132,3 +132,27 @@ jobs:
           labels: ${{ steps.frontend-meta.outputs.labels }}
           build-args: |
             REACT_APP_API_URL=
+
+      - name: Deploy backend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster cloudforge-cluster \
+            --service cloudforge-backend \
+            --force-new-deployment \
+            --region ap-south-2
+          aws ecs wait services-stable \
+            --cluster cloudforge-cluster \
+            --services cloudforge-backend \
+            --region ap-south-2
+
+      - name: Deploy frontend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster cloudforge-cluster \
+            --service cloudforge-frontend \
+            --force-new-deployment \
+            --region ap-south-2
+          aws ecs wait services-stable \
+            --cluster cloudforge-cluster \
+            --services cloudforge-frontend \
+            --region ap-south-2
