@@ -185,7 +185,7 @@ resource "aws_lb_target_group" "cloudforge_backend" {
   health_check {
     enabled             = true
     protocol            = "HTTP"
-    path                = "/api/notes/"
+    path                = "/healthz/"
     port                = "traffic-port"
     matcher             = "200"
     interval            = 30
@@ -270,6 +270,11 @@ resource "aws_ecs_service" "cloudforge_backend" {
 
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   network_configuration {
     subnets          = ["subnet-075288d7019e9e58b"]
