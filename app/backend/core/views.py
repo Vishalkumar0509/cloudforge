@@ -5,3 +5,6 @@ def api_success(request):
 
 def root_success(request):
     return JsonResponse({"message": "Welcome to the root endpoint!"})
+
+def healthz(request):
+    return JsonResponse({"status": "ok"})
