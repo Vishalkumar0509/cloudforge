@@ -306,8 +306,7 @@ resource "aws_ecs_service" "cloudforge_frontend" {
   network_configuration {
     subnets = [
       "subnet-075288d7019e9e58b",
-      "subnet-0bb0a04103a0f7419",
-      "subnet-066f9dbfbc853b5a7"
+      "subnet-0bb0a04103a0f7419"
     ]
 
     security_groups  = ["sg-0be2450104b405c64"]
