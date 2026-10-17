@@ -22,6 +22,7 @@ from . import views  # Import the views from the current app
 
 
 urlpatterns = [
+    path('', include('django_prometheus.urls')),
     path('healthz/', views.healthz, name='healthz'),
     path('admin/', admin.site.urls),
     path('api/', include('notes.urls')),

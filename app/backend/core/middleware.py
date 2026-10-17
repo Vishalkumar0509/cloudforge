@@ -1,6 +1,6 @@
 class HealthCheckHostMiddleware:
     """
-    Normalize the Host header only for the dedicated ALB health endpoint.
+    Normalize the Host header only for dedicated health and metrics endpoints.
     All other requests retain Django's normal host validation.
     """
 
@@ -8,7 +8,10 @@ class HealthCheckHostMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.path == "/healthz/" and request.method in ("GET", "HEAD"):
+        if (
+            request.path in ("/healthz/", "/metrics", "/metrics/")
+            and request.method in ("GET", "HEAD")
+        ):
             request.META["HTTP_HOST"] = "localhost"
 
         return self.get_response(request)

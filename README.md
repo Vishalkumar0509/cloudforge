@@ -69,6 +69,8 @@ flowchart TD
 │       └── notes-frontend/
 │           ├── Dockerfile
 │           └── package.json
+├── monitoring/
+│   └── prometheus.yml
 ├── terraform/
 │   ├── main.tf
 │   └── .gitignore
@@ -149,6 +151,63 @@ docker compose down
 ```
 
 The PostgreSQL data volume is retained when using the normal `docker compose down` command. Do not use `-v` unless you intentionally want to remove the local database volume.
+
+## Local Monitoring and Alerting
+
+CloudForge includes a local monitoring stack using Prometheus and Grafana to observe the Django backend. This monitoring setup runs through Docker Compose and is separate from the AWS-hosted application infrastructure.
+
+### Components
+
+- **Prometheus:** Scrapes backend metrics from `/metrics` and monitors its own health.
+- **Grafana:** Provides the `CloudForge - Local Monitoring` dashboard.
+- **Health checks:** The Django backend exposes `/healthz/`.
+- **Alerting:** The `CloudForge - Backend Down` alert detects backend availability problems.
+- **Email notifications:** Grafana can send alert notifications through Amazon SES SMTP when the email contact point and notification policy are configured.
+
+### Start the monitoring stack
+
+Start the backend and monitoring services:
+
+```bash
+docker compose up -d backend prometheus grafana
+```
+
+Check their status:
+
+```bash
+docker compose ps backend prometheus grafana
+```
+
+Open these local endpoints:
+
+| Service | URL |
+|---|---|
+| Grafana | http://localhost:3001 |
+| Prometheus | http://localhost:9090 |
+| Prometheus targets | http://localhost:9090/targets |
+| Backend metrics | http://localhost:8000/metrics |
+| Backend health | http://localhost:8000/healthz/ |
+
+Before starting Grafana, set `GRAFANA_ADMIN_PASSWORD` in `.env` to a strong local password; do not leave the example value `change-me`. Configure the optional SMTP settings in `.env` only if email notifications are required. Keep all real credentials out of Git.
+
+### Useful monitoring commands
+
+```bash
+# View recent service logs
+docker compose logs --tail=100 backend prometheus grafana
+
+# Restart Prometheus
+docker compose restart prometheus
+
+# Stop the local monitoring services
+docker compose stop prometheus grafana
+```
+
+### Startup behavior
+
+The backend, Prometheus, and Grafana use the Docker restart policy `unless-stopped`. Docker Desktop must be running for the containers to start. Automatic recovery after a Windows restart should be verified on the local machine.
+
+This monitoring stack is configured for local development and demonstration; it is not an AWS-hosted Prometheus or Grafana deployment.
 
 ## CI/CD Pipeline
 
