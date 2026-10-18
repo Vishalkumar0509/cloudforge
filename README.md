@@ -226,6 +226,15 @@ The pipeline runs on pushes and pull requests targeting `main`.
 
 Images are tagged with `latest` and the source commit SHA.
 
+### Latest verification
+
+The CI/CD workflow completed successfully after updating the GitHub Actions
+versions and pinning all three jobs to `ubuntu-24.04`. The latest verified
+deployment returned HTTP 200 from both the frontend and notes API.
+
+These results describe the verification performed at that time; check the
+live endpoints and recent workflow runs to confirm their current status.
+
 ### Deployment verification
 
 List recent workflow runs:
@@ -306,6 +315,11 @@ The ALB checks `/healthz/` and expects HTTP 200. This separates infrastructure h
 5. Confirm that the task can reach its required dependencies.
 
 The ECS deployment circuit breaker is configured to roll back failed deployments.
+
+Also verify that every subnet configured for an ECS service is in an
+Availability Zone enabled on its associated load balancer. A mismatch can
+prevent targets from registering successfully and cause health-check or
+deployment failures.
 
 ### Useful commands
 
