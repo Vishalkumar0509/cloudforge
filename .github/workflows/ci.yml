@@ -16,7 +16,7 @@ jobs:
 
   backend:
     name: Backend Checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -41,7 +41,7 @@ jobs:
 
   frontend:
     name: Frontend Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -67,7 +67,7 @@ jobs:
 
   docker:
     name: Build and Push Docker Images to ECR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     needs:
       - backend
