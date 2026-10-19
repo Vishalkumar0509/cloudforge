@@ -128,9 +128,15 @@ docker compose ps
 
 ### 4. Test the application
 
-- Frontend: http://localhost:3000/
-- Notes API: http://localhost:8000/api/notes/
-- Backend health endpoint: http://localhost:8000/healthz/
+After starting the application locally with Docker Compose, open these endpoints on your own computer:
+
+- **Local frontend:** http://localhost:3000/
+- **Local Notes API:** http://localhost:8000/api/notes/
+- **Local backend health check:** http://localhost:8000/healthz/
+
+These localhost URLs work only when the corresponding local containers are running. They are not public links.
+
+To access the deployed AWS application, use the links in the [Live Application](#live-application) section above.
 
 Check logs if a service fails:
 
