@@ -38,6 +38,9 @@ jobs:
         run: |
           python manage.py check
 
+      - name: Run backend tests
+        working-directory: app/backend
+        run: python manage.py test notes
 
   frontend:
     name: Frontend Build
