@@ -18,6 +18,27 @@ jobs:
     name: Backend Checks
     runs-on: ubuntu-24.04
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cloudforge_test
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d cloudforge_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_DB: cloudforge_test
+      POSTGRES_USERNAME: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
