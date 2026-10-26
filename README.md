@@ -1,16 +1,21 @@
 # CloudForge — Cloud-Native Deployment Project
 
-CloudForge is a full-stack application deployed on AWS using Docker, Amazon ECS with AWS Fargate, Amazon ECR, an Application Load Balancer, Amazon RDS for PostgreSQL, Terraform, and GitHub Actions.
+CloudForge is a full-stack application with a verified local Kubernetes deployment and a previously verified AWS deployment using Docker, Amazon ECS with AWS Fargate, Amazon ECR, an Application Load Balancer, Amazon RDS for PostgreSQL, Terraform, and GitHub Actions.
 
 The project demonstrates containerization, cloud infrastructure management, CI/CD automation, application routing, health checks, and deployment troubleshooting.
 
-## Live Application
+## AWS Deployment Status
 
-- **Frontend:** http://cloudforge-alb-174669174.ap-south-2.elb.amazonaws.com/
-- **API endpoint:** http://cloudforge-alb-174669174.ap-south-2.elb.amazonaws.com/api/notes/
-- **AWS Region:** `ap-south-2` (Asia Pacific — Hyderabad)
+CloudForge was previously deployed to AWS in the `ap-south-2` region
+using ECS Fargate, ECR, an Application Load Balancer, and RDS PostgreSQL.
+The AWS deployment has since been taken offline for cost control:
+the load balancer was deleted, ECS services were scaled to zero, and
+the RDS instance was stopped. The former public application URL is no
+longer a reliable live endpoint.
 
-The application and API returned HTTP 200 after the latest successful deployment. The live endpoints use HTTP, not HTTPS.
+The project now also includes a verified **local Kubernetes deployment**
+using Docker Desktop Kubernetes. See [Local Kubernetes](#local-kubernetes)
+for access instructions and verification details.
 
 ## Architecture
 
@@ -215,6 +220,90 @@ The backend, Prometheus, and Grafana use the Docker restart policy `unless-stopp
 
 This monitoring stack is configured for local development and demonstration; it is not an AWS-hosted Prometheus or Grafana deployment.
 
+## Local Kubernetes
+
+CloudForge can run locally on the Kubernetes cluster provided by Docker
+Desktop. This is a local Kubernetes deployment, **not Amazon EKS**.
+
+### Components
+
+- React frontend, exposed through a Kubernetes Service.
+- Django REST Framework backend with health checks and Prometheus metrics.
+- PostgreSQL with a PersistentVolumeClaim (`postgres-data`, 2 GiB).
+- Prometheus for backend metrics collection.
+- Grafana with the `CloudForge Kubernetes Monitoring` dashboard.
+
+### Kubernetes manifests
+
+The `k8s/` directory contains:
+
+- `01-database.yaml` — PostgreSQL Deployment, Service, and persistent storage.
+- `02-backend.yaml` — Django backend Deployment and Service.
+- `03-frontend.yaml` — React frontend Deployment and Service.
+- `04-monitoring.yaml` — Prometheus configuration and Deployment.
+- `05-grafana.yaml` — Grafana Deployment, Service, and datasource configuration.
+
+### Create the Grafana Secret
+
+On a fresh cluster, create the `cloudforge` namespace and the Grafana login Secret before applying `05-grafana.yaml`. Enter the password interactively; do not store credentials in manifests or Git. See the commands below.
+
+```bash
+kubectl create namespace cloudforge --dry-run=client -o yaml | kubectl apply -f -
+read -r -p "Grafana username [admin]: " GRAFANA_USER
+GRAFANA_USER=${GRAFANA_USER:-admin}
+read -r -s -p "Grafana password: " GRAFANA_PASSWORD
+printf "\n"
+kubectl create secret generic grafana-admin --namespace cloudforge --from-literal=admin-user="$GRAFANA_USER" --from-literal=admin-password="$GRAFANA_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
+unset GRAFANA_USER GRAFANA_PASSWORD
+```
+
+If `grafana-admin` already exists, do not run these commands unless you intend to update its credentials. Create the database Secret separately using your local database credentials before applying the backend manifest.
+
+### Access the local services
+
+Run port-forward commands in separate terminals and keep each terminal
+open while using the corresponding service:
+
+| Service | Port-forward command | Local URL |
+|---|---|---|
+| Frontend | `kubectl port-forward -n cloudforge service/frontend 3002:3000` | http://localhost:3002 |
+| Backend API | `kubectl port-forward -n cloudforge service/backend 8001:8000` | http://localhost:8001/api/notes/ |
+| Prometheus | `kubectl port-forward -n cloudforge service/prometheus 9091:9090` | http://localhost:9091 |
+| Grafana | `kubectl port-forward -n cloudforge service/grafana 3003:3000` | http://localhost:3003 |
+
+The frontend image is configured to use `http://localhost:8001` for its
+API, so the backend port-forward must be running when testing the frontend.
+The Prometheus local port `9091` avoids conflicting with the Docker Compose
+Prometheus service on port `9090`.
+
+### Verification performed
+
+- All five Kubernetes Deployments reported `1/1 Available`.
+- The notes API returned HTTP 200.
+- Notes could be created and remained visible after refreshing the frontend.
+- Both test notes remained in the API response after deleting and recreating
+  the PostgreSQL pod.
+- The `postgres-data` PersistentVolumeClaim remained `Bound` to its 2 GiB
+  volume after the pod restart.
+- Prometheus successfully scraped the backend metrics endpoint.
+- Grafana displayed the `CloudForge Kubernetes Monitoring` dashboard with
+  request rate, p95 latency, 5xx error rate, and backend metrics target health.
+
+### Useful commands
+
+```bash
+kubectl get deployments,services,pods -n cloudforge
+kubectl get pvc -n cloudforge
+kubectl get configmaps,secrets -n cloudforge
+```
+
+**Local development and security notes:** Docker Desktop Kubernetes must be
+enabled and running. The database Secret must be created locally before
+applying the manifests. Do not commit Secret values, passwords, or other
+credentials. The current local manifests use development settings and must
+be hardened before any production deployment. The PostgreSQL PVC uses local
+Docker Desktop storage and is not a substitute for off-machine backups.
+
 ## CI/CD Pipeline
 
 Workflow file: `.github/workflows/ci.yml`
@@ -355,11 +444,17 @@ aws elbv2 describe-target-health \
 
 ## Current Scope and Limitations
 
-This repository documents the deployed React + Django + PostgreSQL application and its AWS container deployment.
+The project includes a React frontend, Django REST API, PostgreSQL,
+Docker Compose, a local Kubernetes deployment on Docker Desktop, and
+Prometheus/Grafana monitoring.
 
-Kubernetes/EKS, Helm, and Argo CD/GitOps are not represented as completed features in this README. Add them only after implementation and verification.
+The AWS ECS/Fargate deployment was previously verified but is currently
+offline. Local Kubernetes has been tested; deployment to Amazon EKS,
+Helm packaging, and Argo CD/GitOps are not claimed as implemented.
 
-The project uses a small deployment footprint for learning and demonstration. AWS resources may incur charges; review AWS Billing before leaving resources running.
+The project is intended for learning and demonstration. AWS resources may
+incur charges even when the application is not serving traffic. Review
+AWS Billing and verify resource status before enabling deployments.
 
 ## Author
 
