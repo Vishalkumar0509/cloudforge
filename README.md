@@ -141,7 +141,7 @@ After starting the application locally with Docker Compose, open these endpoints
 
 These localhost URLs work only when the corresponding local containers are running. They are not public links.
 
-To access the deployed AWS application, use the links in the [Live Application](#live-application) section above.
+The AWS deployment is currently offline. Use the local endpoints documented above when running Docker Compose, or follow the Local Kubernetes instructions below.
 
 Check logs if a service fails:
 
@@ -173,7 +173,7 @@ CloudForge includes a local monitoring stack using Prometheus and Grafana to obs
 - **Grafana:** Provides the `CloudForge - Local Monitoring` dashboard.
 - **Health checks:** The Django backend exposes `/healthz/`.
 - **Alerting:** The `CloudForge - Backend Down` alert detects backend availability problems.
-- **Email notifications:** Grafana can send alert notifications through Amazon SES SMTP when the email contact point and notification policy are configured.
+- **Email notifications:** Grafana can send alert notifications through the SMTP configuration provided for the local monitoring environment. Keep all SMTP credentials out of Git.
 
 ### Start the monitoring stack
 
@@ -230,8 +230,13 @@ Desktop. This is a local Kubernetes deployment, **not Amazon EKS**.
 - React frontend, exposed through a Kubernetes Service.
 - Django REST Framework backend with health checks and Prometheus metrics.
 - PostgreSQL with a PersistentVolumeClaim (`postgres-data`, 2 GiB).
-- Prometheus for backend metrics collection.
+- Prometheus for backend metrics collection and alert rule evaluation.
 - Grafana with the `CloudForge Kubernetes Monitoring` dashboard.
+- Alertmanager for Prometheus alert routing and email notifications.
+- Gmail SMTP credentials supplied through a Kubernetes Secret.
+
+Grafana uses persistent storage (`grafana-data`, 2 GiB). PostgreSQL uses
+its own persistent volume (`postgres-data`, 2 GiB).
 
 ### Kubernetes manifests
 
@@ -242,6 +247,9 @@ The `k8s/` directory contains:
 - `03-frontend.yaml` — React frontend Deployment and Service.
 - `04-monitoring.yaml` — Prometheus configuration and Deployment.
 - `05-grafana.yaml` — Grafana Deployment, Service, and datasource configuration.
+- `06-ingress.yaml` — Traefik Ingress routing for the local frontend and API.
+- `07-prometheus-rules.yaml` — Prometheus alert rules, including `CloudForgeBackendDown`.
+- `08-alertmanager.yaml` — Alertmanager configuration, Deployment, and Service.
 
 ### Create the Grafana Secret
 
@@ -259,35 +267,72 @@ unset GRAFANA_USER GRAFANA_PASSWORD
 
 If `grafana-admin` already exists, do not run these commands unless you intend to update its credentials. Create the database Secret separately using your local database credentials before applying the backend manifest.
 
+### Create the Alertmanager SMTP Secret
+
+Alertmanager reads the Gmail SMTP app password from the `grafana-smtp`
+Kubernetes Secret. Create or update it interactively:
+
+```bash
+read -r -s -p "Gmail SMTP app password: " SMTP_PASSWORD
+printf "\n"
+kubectl create secret generic grafana-smtp --namespace cloudforge --from-literal=password="$SMTP_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
+unset SMTP_PASSWORD
+```
+
+Use a Gmail App Password where applicable, not your normal Gmail password.
+Do not commit the Secret or its credentials to Git.
+
 ### Access the local services
 
-Run port-forward commands in separate terminals and keep each terminal
-open while using the corresponding service:
+The local Traefik Ingress routes the frontend and Notes API through one address:
+
+| Component | URL | Routing |
+|---|---|---|
+| Frontend | http://localhost/ | `/` routes to the frontend Service on port 3000 |
+| Notes API | http://localhost/api/notes/ | `/api` routes to the backend Service on port 8000 |
+
+No frontend or backend port-forward is needed while the Docker Desktop Kubernetes cluster and Traefik are running. The frontend uses a relative API base path for this Kubernetes deployment.
+
+For direct troubleshooting, you can still use port-forwards in separate terminals:
 
 | Service | Port-forward command | Local URL |
 |---|---|---|
-| Frontend | `kubectl port-forward -n cloudforge service/frontend 3002:3000` | http://localhost:3002 |
-| Backend API | `kubectl port-forward -n cloudforge service/backend 8001:8000` | http://localhost:8001/api/notes/ |
-| Prometheus | `kubectl port-forward -n cloudforge service/prometheus 9091:9090` | http://localhost:9091 |
-| Grafana | `kubectl port-forward -n cloudforge service/grafana 3003:3000` | http://localhost:3003 |
+| Backend API | `kubectl port-forward -n cloudforge service/backend 18000:8000` | http://localhost:18000/api/notes/ |
+| Prometheus | `kubectl port-forward -n cloudforge service/prometheus 19090:9090` | http://localhost:19090 |
+| Grafana | `kubectl port-forward -n cloudforge service/grafana 13001:3000` | http://localhost:13001 |
+| Alertmanager | `kubectl port-forward -n cloudforge service/alertmanager 19093:9093` | http://localhost:19093 |
 
-The frontend image is configured to use `http://localhost:8001` for its
-API, so the backend port-forward must be running when testing the frontend.
-The Prometheus local port `9091` avoids conflicting with the Docker Compose
-Prometheus service on port `9090`.
+Keep each port-forward terminal open while using that direct endpoint.
+Stop a port-forward with `Ctrl+C`. Prometheus communicates with Alertmanager
+internally through the Kubernetes Service `alertmanager:9093`; that connection
+does not require a port-forward. These local ports reduce conflicts with
+Docker Compose services.
 
 ### Verification performed
 
-- All five Kubernetes Deployments reported `1/1 Available`.
-- The notes API returned HTTP 200.
+- Six Kubernetes workloads were verified with all six pods `1/1 Running`.
+- The frontend returned HTTP 200 at `http://localhost/` through Traefik.
+- The Notes API returned HTTP 200 at `http://localhost/api/notes/`.
 - Notes could be created and remained visible after refreshing the frontend.
-- Both test notes remained in the API response after deleting and recreating
+- Test notes remained in the API response after deleting and recreating
   the PostgreSQL pod.
 - The `postgres-data` PersistentVolumeClaim remained `Bound` to its 2 GiB
   volume after the pod restart.
 - Prometheus successfully scraped the backend metrics endpoint.
 - Grafana displayed the `CloudForge Kubernetes Monitoring` dashboard with
-  request rate, p95 latency, 5xx error rate, and backend metrics target health.
+  request rate, p95 latency, 5xx error rate, and backend target health.
+- The `CloudForgeBackendDown` rule was restored and loaded successfully.
+  It remained inactive while the backend was healthy.
+- A temporary synthetic alert verified Prometheus rule evaluation,
+  Alertmanager receipt, and Gmail email delivery. The temporary test alert
+  and its test ConfigMap were removed afterward.
+- A real backend outage was tested by scaling the backend Deployment from
+  one replica to zero. Prometheus detected `up = 0`, and the
+  `CloudForgeBackendDown` alert fired after its 60-second pending period.
+- Alertmanager delivered the `[FIRING] CloudForgeBackendDown` email to Gmail.
+- The backend was restored to one replica. Prometheus detected `up = 1`,
+  and Alertmanager delivered the `[RESOLVED] CloudForgeBackendDown` email.
+- Final verification confirmed no active alerts in Prometheus or Alertmanager.
 
 ### Useful commands
 
@@ -298,8 +343,9 @@ kubectl get configmaps,secrets -n cloudforge
 ```
 
 **Local development and security notes:** Docker Desktop Kubernetes must be
-enabled and running. The database Secret must be created locally before
-applying the manifests. Do not commit Secret values, passwords, or other
+enabled and running. The database, Grafana, and SMTP Secrets must be
+created locally before applying the corresponding manifests. Do not commit
+Secret values, passwords, or other
 credentials. The current local manifests use development settings and must
 be hardened before any production deployment. The PostgreSQL PVC uses local
 Docker Desktop storage and is not a substitute for off-machine backups.

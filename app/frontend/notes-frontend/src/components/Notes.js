@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../axios';
 import {
     TextField,
     Button,
@@ -12,7 +12,7 @@ import {
     Paper,
 } from '@mui/material';
 
-const API_URL = process.env.REACT_APP_API_URL;
+
 
 const Notes = () => {
     const [notes, setNotes] = useState([]);
@@ -26,9 +26,7 @@ const Notes = () => {
             setLoading(true);
             setError('');
 
-            const response = await axios.get(
-                `${API_URL}/api/notes/`
-            );
+            const response = await axios.get('/api/notes/');
 
             console.log('Notes API response:', response.data);
 
@@ -68,13 +66,10 @@ const Notes = () => {
         try {
             setError('');
 
-            const response = await axios.post(
-                `${API_URL}/api/notes/`,
-                {
-                    title: title.trim(),
-                    content: content.trim(),
-                }
-            );
+            const response = await axios.post('/api/notes/', {
+                title: title.trim(),
+                content: content.trim(),
+            });
 
             console.log('Add note response:', response.data);
 

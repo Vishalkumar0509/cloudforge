@@ -16,6 +16,13 @@ spec:
       containers:
         - name: backend
           image: cloudforge-backend:latest
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
@@ -40,13 +47,18 @@ spec:
             - name: POSTGRES_PORT
               value: "5432"
             - name: DJANGO_DEBUG
-              value: "True"
+              value: "False"
             - name: DJANGO_ALLOWED_HOSTS
               value: "localhost,127.0.0.1,backend"
             - name: DJANGO_CORS_ALLOW_ALL_ORIGINS
-              value: "True"
+              value: "False"
+            - name: DJANGO_CORS_ALLOWED_ORIGINS
+              value: "http://localhost:13000,http://127.0.0.1:13000"
             - name: DJANGO_SECRET_KEY
-              value: "dev-only-insecure-key-change-before-deployment"
+              valueFrom:
+                secretKeyRef:
+                  name: django-secret-key
+                  key: DJANGO_SECRET_KEY
           readinessProbe:
             httpGet:
               path: /healthz/

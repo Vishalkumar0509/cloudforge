@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: {{ include "cloudforge.namespace" . }}
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: '{{ .Values.notifications.email }}'
+      smtp_auth_username: '{{ .Values.notifications.smtpUsername }}'
+      smtp_auth_password_file: '/etc/alertmanager/secrets/password'
+      smtp_require_tls: true
+
+    route:
+      receiver: cloudforge-email
+      group_by: ['alertname', 'service']
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 4h
+
+    receivers:
+      - name: cloudforge-email
+        email_configs:
+          - to: '{{ .Values.notifications.email }}'
+            send_resolved: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: {{ include "cloudforge.namespace" . }}
+  labels:
+    app: alertmanager
+    {{- include "cloudforge.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.alertmanager.replicaCount }}
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      securityContext:
+        fsGroup: 65534
+      containers:
+        - name: alertmanager
+          image: "{{ .Values.alertmanager.image.repository }}:{{ .Values.alertmanager.image.tag }}"
+          imagePullPolicy: {{ .Values.alertmanager.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            {{- toYaml .Values.alertmanager.resources | nindent 12 }}
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+          ports:
+            - name: web
+              containerPort: 9093
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+              readOnly: true
+            - name: smtp-password
+              mountPath: /etc/alertmanager/secrets
+              readOnly: true
+            - name: data
+              mountPath: /alertmanager
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: smtp-password
+          secret:
+            secretName: grafana-smtp
+            items:
+              - key: password
+                path: password
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: {{ include "cloudforge.namespace" . }}
+spec:
+  selector:
+    app: alertmanager
+  ports:
+    - name: web
+      port: {{ .Values.alertmanager.service.port }}
+      targetPort: 9093
+  type: ClusterIP

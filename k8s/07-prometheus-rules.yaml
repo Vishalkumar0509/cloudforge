@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: cloudforge
+data:
+  cloudforge-alerts.yml: |
+    groups:
+      - name: cloudforge
+        rules:
+          - alert: CloudForgeBackendDown
+            expr: up{job="cloudforge-backend"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: cloudforge-backend
+            annotations:
+              summary: "CloudForge backend is down"
+              description: "Prometheus cannot scrape the CloudForge backend."

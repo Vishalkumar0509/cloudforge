@@ -1,0 +1,101 @@
+namespace: cloudforge
+
+backend:
+  replicaCount: 1
+  image:
+    repository: cloudforge-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    port: 8000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: cloudforge-frontend
+    tag: k8s
+    pullPolicy: IfNotPresent
+  service:
+    port: 3000
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+postgres:
+  replicaCount: 1
+  image:
+    repository: postgres
+    tag: "16"
+    pullPolicy: IfNotPresent
+  service:
+    port: 5432
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+prometheus:
+  replicaCount: 1
+  image:
+    repository: prom/prometheus
+    tag: v2.55.1
+    pullPolicy: IfNotPresent
+  service:
+    port: 9090
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+grafana:
+  replicaCount: 1
+  image:
+    repository: grafana/grafana
+    tag: "11.4.0"
+    pullPolicy: IfNotPresent
+  service:
+    port: 3000
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+notifications:
+  email: "alerts@example.invalid"
+  smtpUsername: "alerts@example.invalid"
+
+alertmanager:
+  replicaCount: 1
+  image:
+    repository: prom/alertmanager
+    tag: v0.28.1
+    pullPolicy: IfNotPresent
+  service:
+    port: 9093
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

@@ -16,6 +16,13 @@ spec:
       containers:
         - name: frontend
           image: cloudforge-frontend:k8s
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
