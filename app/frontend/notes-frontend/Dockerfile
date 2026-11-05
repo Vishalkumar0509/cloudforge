@@ -13,7 +13,10 @@ ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 ENV DISABLE_ESLINT_PLUGIN=true
 
-RUN npm run build
+RUN npm run build \
+    && chown -R node:node /app
+
+USER node
 
 EXPOSE 3000
 

@@ -16,10 +16,21 @@ spec:
       labels:
         app: frontend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: frontend
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
           ports:

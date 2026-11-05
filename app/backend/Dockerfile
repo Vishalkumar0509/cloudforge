@@ -13,7 +13,11 @@ RUN pip install --no-cache-dir --upgrade pip \
 COPY . .
 
 RUN sed -i 's/\r$//' entrypoint.sh \
-    && chmod +x entrypoint.sh
+    && chmod +x entrypoint.sh \
+    && useradd --create-home --uid 10001 --shell /usr/sbin/nologin cloudforge \
+    && chown -R cloudforge:cloudforge /app
+
+USER 10001
 
 EXPOSE 8000
 

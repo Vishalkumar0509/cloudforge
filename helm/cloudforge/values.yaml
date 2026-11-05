@@ -4,7 +4,7 @@ backend:
   replicaCount: 1
   image:
     repository: cloudforge-backend
-    tag: latest
+    tag: security-test
     pullPolicy: IfNotPresent
   service:
     port: 8000
@@ -20,7 +20,7 @@ frontend:
   replicaCount: 1
   image:
     repository: cloudforge-frontend
-    tag: k8s
+    tag: security-test
     pullPolicy: IfNotPresent
   service:
     port: 3000

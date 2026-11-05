@@ -16,10 +16,21 @@ spec:
       labels:
         app: backend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: backend
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
           ports:
