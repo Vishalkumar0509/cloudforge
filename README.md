@@ -1,106 +1,221 @@
-# CloudForge — Cloud-Native Deployment Project
+# CloudForge — Cloud-Native Application & DevOps Project
 
-CloudForge is a full-stack application with a verified local Kubernetes deployment and a previously verified AWS deployment using Docker, Amazon ECS with AWS Fargate, Amazon ECR, an Application Load Balancer, Amazon RDS for PostgreSQL, Terraform, and GitHub Actions.
+**CloudForge v1.0.0** is a containerized full-stack application deployed on local Kubernetes using Docker Desktop, Helm and Argo CD.
 
-The project demonstrates containerization, cloud infrastructure management, CI/CD automation, application routing, health checks, and deployment troubleshooting.
+The project demonstrates application development, containerization, Kubernetes orchestration, GitOps-based deployments, CI/CD automation, monitoring, persistent storage and container security hardening.
 
-## AWS Deployment Status
+The application consists of a React frontend, Django REST API and PostgreSQL database, supported by Prometheus, Grafana and Alertmanager.
 
-CloudForge was previously deployed to AWS in the `ap-south-2` region
-using ECS Fargate, ECR, an Application Load Balancer, and RDS PostgreSQL.
-The AWS deployment has since been taken offline for cost control:
-the load balancer was deleted, ECS services were scaled to zero, and
-the RDS instance was stopped. The former public application URL is no
-longer a reliable live endpoint.
+> **Current deployment:** Local Docker Desktop Kubernetes
+> **Release:** v1.0.0
+> **Git tag:** v1.0.0
+> **AWS deployment:** Previously verified; currently offline
 
-The project now also includes a verified **local Kubernetes deployment**
-using Docker Desktop Kubernetes. See [Local Kubernetes](#local-kubernetes)
-for access instructions and verification details.
+---
+
+## Table of Contents
+
+1. [Architecture](#architecture)
+2. [Technology Stack](#technology-stack)
+3. [Application Features](#application-features)
+4. [Repository Structure](#repository-structure)
+5. [Run Locally with Docker Compose](#run-locally-with-docker-compose)
+6. [Kubernetes Deployment](#kubernetes-deployment)
+7. [Helm and Argo CD GitOps](#helm-and-argo-cd-gitops)
+8. [Monitoring and Alerting](#monitoring-and-alerting)
+9. [Container Security](#container-security)
+10. [CI/CD Pipeline](#cicd-pipeline)
+11. [Release Management](#release-management)
+12. [Verification Results](#verification-results)
+13. [Rollback Strategy](#rollback-strategy)
+14. [Historical AWS Deployment](#historical-aws-deployment)
+15. [Terraform and Infrastructure Management](#terraform-and-infrastructure-management)
+16. [Security and Operational Notes](#security-and-operational-notes)
+17. [Author](#author)
+
+---
 
 ## Architecture
 
+### Current local Kubernetes architecture
+
 ```mermaid
 flowchart TD
-    User[Browser] --> ALB[Application Load Balancer]
-    ALB -->|/| Frontend[React Frontend on ECS Fargate]
-    ALB -->|/api/*| Backend[Django REST API on ECS Fargate]
-    Backend --> RDS[(Amazon RDS PostgreSQL)]
-    GitHub[GitHub Repository] --> Actions[GitHub Actions]
-    Actions -->|OIDC authentication| AWS[AWS]
-    Actions --> ECR[Amazon ECR]
-    ECR --> Backend
-    ECR --> Frontend
-    Terraform[Terraform Configuration] -. manages existing resources .-> AWS
+    User[User Browser]
+
+    subgraph K8S["Docker Desktop Kubernetes"]
+        Traefik[Traefik Ingress]
+
+        Frontend[React Frontend]
+        Backend[Django REST API]
+        DB[(PostgreSQL)]
+
+        Prom[Prometheus]
+        Grafana[Grafana]
+        Alert[Alertmanager]
+
+        Traefik -->|/| Frontend
+        Traefik -->|/api/*| Backend
+        Backend --> DB
+
+        Prom -->|Scrapes /metrics| Backend
+        Prom -->|Alert notifications| Alert
+        Grafana -->|Queries metrics| Prom
+    end
+
+    GitHub[GitHub Repository]
+    Actions[GitHub Actions CI]
+    Argo[Argo CD]
+    Helm[Helm Chart]
+
+    User --> Traefik
+
+    GitHub --> Actions
+    GitHub --> Argo
+    Argo --> Helm
+    Helm --> K8S
 ```
 
-### Request flow
+### Application request flow
 
-1. A browser requests the application through the Application Load Balancer.
-2. The ALB forwards `/` requests to the frontend target group.
-3. Requests under `/api/*` are routed to the Django backend target group.
-4. The backend uses PostgreSQL for application data.
-5. GitHub Actions builds container images, pushes them to ECR, and triggers ECS deployments.
-6. Terraform configuration describes the AWS resources managed by the project.
+1. A browser accesses CloudForge through the local Traefik Ingress.
+2. Requests to `/` are forwarded to the React frontend.
+3. Requests to `/api/` are forwarded to the Django REST API.
+4. Django communicates with PostgreSQL for application data.
+5. Prometheus scrapes backend metrics from `/metrics`.
+6. Grafana uses Prometheus as its metrics datasource.
+7. Prometheus forwards configured alerts to Alertmanager.
+
+### GitOps deployment flow
+
+1. Code and Kubernetes configuration are maintained in GitHub.
+2. GitHub Actions runs backend checks and frontend builds.
+3. Argo CD monitors the GitHub repository.
+4. Argo CD renders the Helm chart.
+5. Changes are deployed through manual Argo CD synchronization.
+
+The CloudForge Argo CD application uses manual synchronization rather than automatic deployment.
+
+---
 
 ## Technology Stack
 
 | Area | Technologies |
 |---|---|
 | Frontend | React, Node.js |
-| Backend | Python, Django, Django REST Framework, Gunicorn |
-| Database | PostgreSQL 16 locally; Amazon RDS PostgreSQL in AWS |
-| Containers | Docker, Docker Compose |
-| AWS compute | Amazon ECS, AWS Fargate |
-| Image registry | Amazon ECR |
-| Networking | VPC, subnets, security groups, Application Load Balancer |
+| Backend | Python 3.12, Django, Django REST Framework |
+| Application server | Gunicorn |
+| Database | PostgreSQL 16 |
+| Containerization | Docker, Docker Compose |
+| Orchestration | Kubernetes (Docker Desktop) |
+| Package management | Helm |
+| GitOps | Argo CD |
+| Ingress | Traefik |
+| Monitoring | Prometheus |
+| Dashboards | Grafana |
+| Alert management | Alertmanager |
+| CI/CD | GitHub Actions |
 | Infrastructure as Code | Terraform |
-| CI/CD | GitHub Actions, AWS IAM OIDC |
-| Region | `ap-south-2` |
+| Cloud infrastructure | AWS ECS, Fargate, ECR, RDS, ALB |
+
+---
+
+## Application Features
+
+- React-based frontend for managing notes.
+- Django REST API for retrieving and creating notes.
+- PostgreSQL database persistence.
+- Docker-based frontend and backend images.
+- Kubernetes Deployments, Services and Ingress.
+- PostgreSQL and Grafana persistent storage.
+- Helm-based application configuration.
+- Argo CD GitOps integration.
+- GitHub Actions backend and frontend CI checks.
+- Prometheus metrics collection and alert rules.
+- Grafana monitoring dashboards.
+- Alertmanager notification routing.
+- Non-root backend and frontend containers.
+- Kubernetes health and readiness checks.
+- Versioned application images and Git release tags.
+
+---
 
 ## Repository Structure
 
 ```text
-.
+cloudforge/
+│
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
+│
 ├── app/
 │   ├── backend/
 │   │   ├── core/
 │   │   ├── notes/
 │   │   ├── requirements/
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   ├── entrypoint.sh
+│   │   └── manage.py
+│   │
 │   └── frontend/
 │       └── notes-frontend/
 │           ├── Dockerfile
 │           └── package.json
+│
+├── helm/
+│   └── cloudforge/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/
+│           ├── 01-database.yaml
+│           ├── 02-backend.yaml
+│           ├── 03-frontend.yaml
+│           ├── 04-prometheus.yaml
+│           ├── 05-grafana.yaml
+│           ├── 06-prometheus-rules.yaml
+│           ├── 07-alertmanager.yaml
+│           ├── 08-ingress.yaml
+│           └── _helpers.tpl
+│
+├── k8s/
+│   ├── 01-database.yaml
+│   ├── 02-backend.yaml
+│   ├── 03-frontend.yaml
+│   ├── 04-monitoring.yaml
+│   ├── 05-grafana.yaml
+│   ├── 06-ingress.yaml
+│   ├── 07-prometheus-rules.yaml
+│   └── 08-alertmanager.yaml
+│
 ├── monitoring/
 │   └── prometheus.yml
+│
 ├── terraform/
 │   ├── main.tf
-│   └── .gitignore
+│   └── .terraform.lock.hcl
+│
 ├── .env.example
 ├── .gitignore
-└── docker-compose.yml
+├── docker-compose.yml
+└── README.md
 ```
 
-## Application Features
+The `helm/cloudforge/` directory is the primary Kubernetes deployment configuration used by Argo CD.
 
-- React frontend served from a container.
-- Django REST API for notes.
-- PostgreSQL database configuration for local and cloud environments.
-- Separate frontend and backend ECS services.
-- ALB path-based routing.
-- Dedicated backend health endpoint at `/healthz/`.
-- Container image publishing to Amazon ECR.
-- Automated ECS deployment through GitHub Actions.
-- Terraform configuration for existing AWS infrastructure.
+The `k8s/` directory contains the separate Kubernetes manifest-based configuration.
 
-## Run Locally
+---
+
+## Run Locally with Docker Compose
 
 ### Prerequisites
 
-Install Docker Desktop with the Docker Compose plugin and Git.
+- Git
+- Docker Desktop
+- Docker Compose plugin
+- Python 3.12 (optional for local development outside Docker)
+- Node.js 18 (optional for frontend development outside Docker)
 
 ### 1. Clone the repository
 
@@ -109,15 +224,15 @@ git clone https://github.com/Vishalkumar0509/cloudforge.git
 cd cloudforge
 ```
 
-### 2. Configure local environment variables
+### 2. Configure environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set local PostgreSQL values. Replace the example password with a local development password.
+Edit `.env` and configure the required local database and application settings.
 
-The `.env` file is ignored by Git and must not contain production credentials.
+Use local development credentials only. Never commit `.env` or production credentials.
 
 ### 3. Build and start the application
 
@@ -125,71 +240,339 @@ The `.env` file is ignored by Git and must not contain production credentials.
 docker compose up --build -d
 ```
 
-Check container status:
+### 4. Verify containers
 
 ```bash
 docker compose ps
 ```
 
-### 4. Test the application
+### 5. Access the application
 
-After starting the application locally with Docker Compose, open these endpoints on your own computer:
+| Component | URL |
+|---|---|
+| React frontend | http://localhost:3000/ |
+| Notes API | http://localhost:8000/api/notes/ |
+| Backend health | http://localhost:8000/healthz/ |
 
-- **Local frontend:** http://localhost:3000/
-- **Local Notes API:** http://localhost:8000/api/notes/
-- **Local backend health check:** http://localhost:8000/healthz/
+These endpoints require the corresponding Docker Compose containers to be running.
 
-These localhost URLs work only when the corresponding local containers are running. They are not public links.
-
-The AWS deployment is currently offline. Use the local endpoints documented above when running Docker Compose, or follow the Local Kubernetes instructions below.
-
-Check logs if a service fails:
+### 6. Inspect logs
 
 ```bash
 docker compose logs --tail=100
 ```
 
-If database migrations are required, run:
-
-```bash
-docker compose exec backend python manage.py migrate
-```
-
-### 5. Stop the application
+### 7. Stop the application
 
 ```bash
 docker compose down
 ```
 
-The PostgreSQL data volume is retained when using the normal `docker compose down` command. Do not use `-v` unless you intentionally want to remove the local database volume.
+The normal `docker compose down` command retains named database volumes.
 
-## Local Monitoring and Alerting
+**Do not use `docker compose down -v` unless you deliberately intend to delete the database volume.**
 
-CloudForge includes a local monitoring stack using Prometheus and Grafana to observe the Django backend. This monitoring setup runs through Docker Compose and is separate from the AWS-hosted application infrastructure.
+---
 
-### Components
+## Kubernetes Deployment
 
-- **Prometheus:** Scrapes backend metrics from `/metrics` and monitors its own health.
-- **Grafana:** Provides the `CloudForge - Local Monitoring` dashboard.
-- **Health checks:** The Django backend exposes `/healthz/`.
-- **Alerting:** The `CloudForge - Backend Down` alert detects backend availability problems.
-- **Email notifications:** Grafana can send alert notifications through the SMTP configuration provided for the local monitoring environment. Keep all SMTP credentials out of Git.
+CloudForge's current Kubernetes environment uses the Docker Desktop Kubernetes cluster. This is a local Kubernetes deployment, not Amazon EKS.
 
-### Start the monitoring stack
+### Prerequisites
 
-Start the backend and monitoring services:
+- Docker Desktop with Kubernetes enabled.
+- `kubectl`
+- Helm
+- Argo CD installed in the cluster.
+- Traefik Ingress Controller.
+- Docker images available to the Kubernetes node.
 
-```bash
-docker compose up -d backend prometheus grafana
+### Application and monitoring components
+
+The Kubernetes namespace is:
+
+```text
+cloudforge
 ```
 
-Check their status:
+The deployment includes:
+
+| Component | Kubernetes resource |
+|---|---|
+| Backend | Deployment and Service |
+| Frontend | Deployment and Service |
+| PostgreSQL | Deployment, Service and PVC |
+| Prometheus | Deployment, Service and ConfigMaps |
+| Grafana | Deployment, Service and PVC |
+| Alertmanager | Deployment, Service and ConfigMaps |
+| Application routing | Traefik Ingress |
+
+### Required Kubernetes Secrets
+
+The application references locally created Kubernetes Secrets. Create these securely before deploying to a fresh cluster.
+
+| Secret | Required keys |
+|---|---|
+| `cloudforge-db` | `POSTGRES_DB`, `POSTGRES_USERNAME`, `POSTGRES_PASSWORD` |
+| `django-secret-key` | `DJANGO_SECRET_KEY` |
+| `grafana-admin` | `admin-user`, `admin-password` |
+| `grafana-smtp` | `password` |
+
+Use secure credentials and an interactive creation process. Never commit Secret values or include them in application manifests.
+
+If the Secrets already exist, do not overwrite them merely to repeat the deployment.
+
+### Build local release images
+
+For a fresh local environment, build the application images:
+
+Backend:
 
 ```bash
-docker compose ps backend prometheus grafana
+docker build \
+  -t cloudforge-backend:v1.0.0 \
+  ./app/backend
 ```
 
-Open these local endpoints:
+Frontend:
+
+```bash
+docker build \
+  --build-arg REACT_APP_API_URL= \
+  -t cloudforge-frontend:v1.0.0 \
+  ./app/frontend/notes-frontend
+```
+
+Verify the image tags:
+
+```bash
+docker image inspect cloudforge-backend:v1.0.0
+docker image inspect cloudforge-frontend:v1.0.0
+```
+
+Ensure the Docker Desktop Kubernetes node can see both images before deploying. The Helm configuration uses `IfNotPresent`, which allows Kubernetes to use locally available images.
+
+### Application access
+
+The Traefik Ingress exposes the application at:
+
+| Component | URL |
+|---|---|
+| Frontend | http://localhost/ |
+| Notes API | http://localhost/api/notes/ |
+
+The backend health endpoint is `/healthz/`. The current Ingress routes `/` to the frontend and `/api/` to the backend, so test backend health directly through its Service port-forward.
+
+---
+
+## Helm and Argo CD GitOps
+
+CloudForge uses Helm for Kubernetes configuration and Argo CD for GitOps deployment.
+
+### Helm chart structure
+
+```text
+helm/cloudforge/
+├── Chart.yaml
+├── values.yaml
+└── templates/
+    ├── 01-database.yaml
+    ├── 02-backend.yaml
+    ├── 03-frontend.yaml
+    ├── 04-prometheus.yaml
+    ├── 05-grafana.yaml
+    ├── 06-prometheus-rules.yaml
+    ├── 07-alertmanager.yaml
+    ├── 08-ingress.yaml
+    └── _helpers.tpl
+```
+
+### Release configuration
+
+The current release uses:
+
+```yaml
+version: 1.0.0
+appVersion: "1.0.0"
+```
+
+Application images:
+
+```yaml
+backend:
+  image:
+    repository: cloudforge-backend
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+
+frontend:
+  image:
+    repository: cloudforge-frontend
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+```
+
+### Validate the Helm chart
+
+```bash
+helm lint ./helm/cloudforge
+```
+
+Render the Kubernetes resources:
+
+```bash
+helm template cloudforge ./helm/cloudforge \
+  --namespace cloudforge
+```
+
+Package the release:
+
+```bash
+helm package ./helm/cloudforge
+```
+
+### Argo CD application configuration
+
+The CloudForge Argo CD Application uses:
+
+| Setting | Configuration |
+|---|---|
+| Application | `cloudforge` |
+| Namespace | `argocd` |
+| Repository | `Vishalkumar0509/cloudforge` |
+| Branch | `main` |
+| Helm path | `helm/cloudforge` |
+| Helm release | `cloudforge` |
+| Destination namespace | `cloudforge` |
+| Sync policy | Manual |
+
+Argo CD tracks the Helm chart in GitHub and compares the desired configuration with the running Kubernetes resources.
+
+Useful commands:
+
+```bash
+kubectl get application cloudforge -n argocd
+```
+
+```bash
+kubectl get deployments -n cloudforge
+```
+
+```bash
+kubectl get pods -n cloudforge
+```
+
+```bash
+kubectl get pvc -n cloudforge
+```
+
+For deployments, review the Argo CD diff before performing a manual sync.
+
+**Important:** Do not use direct `helm upgrade` or `kubectl apply` to modify application resources managed by Argo CD. Use the GitOps workflow so the Git repository remains the source of truth.
+
+---
+
+## Monitoring and Alerting
+
+CloudForge includes two separate monitoring environments:
+
+1. Docker Compose monitoring for local development.
+2. Kubernetes monitoring for the deployed CloudForge application.
+
+### Kubernetes monitoring
+
+| Component | Purpose |
+|---|---|
+| Prometheus | Metrics collection and alert rule evaluation |
+| Grafana | Monitoring dashboards |
+| Alertmanager | Alert routing and notifications |
+
+Prometheus scrapes:
+
+```text
+backend:8000/metrics
+```
+
+Backend health endpoint:
+
+```text
+/healthz/
+```
+
+The monitoring stack includes the `CloudForge Kubernetes Monitoring` Grafana dashboard and the `CloudForgeBackendDown` Prometheus alert rule.
+
+### Local Kubernetes port-forwards
+
+Run each command in a separate terminal:
+
+Backend:
+
+```bash
+kubectl port-forward -n cloudforge service/backend 18000:8000
+```
+
+Prometheus:
+
+```bash
+kubectl port-forward -n cloudforge service/prometheus 19090:9090
+```
+
+Grafana:
+
+```bash
+kubectl port-forward -n cloudforge service/grafana 13001:3000
+```
+
+Alertmanager:
+
+```bash
+kubectl port-forward -n cloudforge service/alertmanager 19093:9093
+```
+
+Access the services:
+
+| Service | Local URL |
+|---|---|
+| Backend API | http://localhost:18000/api/notes/ |
+| Backend health | http://localhost:18000/healthz/ |
+| Backend metrics | http://localhost:18000/metrics |
+| Prometheus | http://localhost:19090 |
+| Grafana | http://localhost:13001 |
+| Alertmanager | http://localhost:19093 |
+
+Keep the port-forward terminal open while using the corresponding endpoint. Stop it with `Ctrl+C`.
+
+### Monitoring verification
+
+Prometheus readiness:
+
+```bash
+curl -sS http://localhost:19090/-/ready
+```
+
+Prometheus targets:
+
+```bash
+curl -sS http://localhost:19090/api/v1/targets
+```
+
+Grafana health:
+
+```bash
+curl -sS http://localhost:13001/api/health
+```
+
+Alertmanager readiness:
+
+```bash
+curl -sS http://localhost:19093/-/ready
+```
+
+### Docker Compose monitoring
+
+The separate Docker Compose monitoring stack provides Prometheus and Grafana for local development.
+
+Its historical local endpoints are:
 
 | Service | URL |
 |---|---|
@@ -197,236 +580,317 @@ Open these local endpoints:
 | Prometheus | http://localhost:9090 |
 | Prometheus targets | http://localhost:9090/targets |
 | Backend metrics | http://localhost:8000/metrics |
-| Backend health | http://localhost:8000/healthz/ |
 
-Before starting Grafana, set `GRAFANA_ADMIN_PASSWORD` in `.env` to a strong local password; do not leave the example value `change-me`. Configure the optional SMTP settings in `.env` only if email notifications are required. Keep all real credentials out of Git.
+The Docker Compose monitoring environment is not the Kubernetes monitoring environment or an AWS-hosted service.
 
-### Useful monitoring commands
+---
 
-```bash
-# View recent service logs
-docker compose logs --tail=100 backend prometheus grafana
+## Container Security
 
-# Restart Prometheus
-docker compose restart prometheus
+The CloudForge v1.0.0 backend and frontend images were hardened and verified in local Kubernetes.
 
-# Stop the local monitoring services
-docker compose stop prometheus grafana
-```
+### Backend security
 
-### Startup behavior
+| Setting | Value |
+|---|---|
+| Image | `cloudforge-backend:v1.0.0` |
+| User | `cloudforge` |
+| UID/GID | `10001` |
+| Non-root enforcement | Enabled |
+| Seccomp | `RuntimeDefault` |
+| Privilege escalation | Disabled |
+| Linux capabilities | All dropped |
 
-The backend, Prometheus, and Grafana use the Docker restart policy `unless-stopped`. Docker Desktop must be running for the containers to start. Automatic recovery after a Windows restart should be verified on the local machine.
+### Frontend security
 
-This monitoring stack is configured for local development and demonstration; it is not an AWS-hosted Prometheus or Grafana deployment.
+| Setting | Value |
+|---|---|
+| Image | `cloudforge-frontend:v1.0.0` |
+| User | `node` |
+| UID/GID | `1000` |
+| Non-root enforcement | Enabled |
+| Seccomp | `RuntimeDefault` |
+| Privilege escalation | Disabled |
+| Linux capabilities | All dropped |
 
-## Local Kubernetes
+The settings are applied through Kubernetes pod-level and container-level security contexts.
 
-CloudForge can run locally on the Kubernetes cluster provided by Docker
-Desktop. This is a local Kubernetes deployment, **not Amazon EKS**.
+### Verification commands
 
-### Components
-
-- React frontend, exposed through a Kubernetes Service.
-- Django REST Framework backend with health checks and Prometheus metrics.
-- PostgreSQL with a PersistentVolumeClaim (`postgres-data`, 2 GiB).
-- Prometheus for backend metrics collection and alert rule evaluation.
-- Grafana with the `CloudForge Kubernetes Monitoring` dashboard.
-- Alertmanager for Prometheus alert routing and email notifications.
-- Gmail SMTP credentials supplied through a Kubernetes Secret.
-
-Grafana uses persistent storage (`grafana-data`, 2 GiB). PostgreSQL uses
-its own persistent volume (`postgres-data`, 2 GiB).
-
-### Kubernetes manifests
-
-The `k8s/` directory contains:
-
-- `01-database.yaml` — PostgreSQL Deployment, Service, and persistent storage.
-- `02-backend.yaml` — Django backend Deployment and Service.
-- `03-frontend.yaml` — React frontend Deployment and Service.
-- `04-monitoring.yaml` — Prometheus configuration and Deployment.
-- `05-grafana.yaml` — Grafana Deployment, Service, and datasource configuration.
-- `06-ingress.yaml` — Traefik Ingress routing for the local frontend and API.
-- `07-prometheus-rules.yaml` — Prometheus alert rules, including `CloudForgeBackendDown`.
-- `08-alertmanager.yaml` — Alertmanager configuration, Deployment, and Service.
-
-### Create the Grafana Secret
-
-On a fresh cluster, create the `cloudforge` namespace and the Grafana login Secret before applying `05-grafana.yaml`. Enter the password interactively; do not store credentials in manifests or Git. See the commands below.
+Inspect the backend:
 
 ```bash
-kubectl create namespace cloudforge --dry-run=client -o yaml | kubectl apply -f -
-read -r -p "Grafana username [admin]: " GRAFANA_USER
-GRAFANA_USER=${GRAFANA_USER:-admin}
-read -r -s -p "Grafana password: " GRAFANA_PASSWORD
-printf "\n"
-kubectl create secret generic grafana-admin --namespace cloudforge --from-literal=admin-user="$GRAFANA_USER" --from-literal=admin-password="$GRAFANA_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
-unset GRAFANA_USER GRAFANA_PASSWORD
+kubectl get deployment backend -n cloudforge -o yaml
 ```
 
-If `grafana-admin` already exists, do not run these commands unless you intend to update its credentials. Create the database Secret separately using your local database credentials before applying the backend manifest.
-
-### Create the Alertmanager SMTP Secret
-
-Alertmanager reads the Gmail SMTP app password from the `grafana-smtp`
-Kubernetes Secret. Create or update it interactively:
+Inspect the frontend:
 
 ```bash
-read -r -s -p "Gmail SMTP app password: " SMTP_PASSWORD
-printf "\n"
-kubectl create secret generic grafana-smtp --namespace cloudforge --from-literal=password="$SMTP_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
-unset SMTP_PASSWORD
+kubectl get deployment frontend -n cloudforge -o yaml
 ```
 
-Use a Gmail App Password where applicable, not your normal Gmail password.
-Do not commit the Secret or its credentials to Git.
-
-### Access the local services
-
-The local Traefik Ingress routes the frontend and Notes API through one address:
-
-| Component | URL | Routing |
-|---|---|---|
-| Frontend | http://localhost/ | `/` routes to the frontend Service on port 3000 |
-| Notes API | http://localhost/api/notes/ | `/api` routes to the backend Service on port 8000 |
-
-No frontend or backend port-forward is needed while the Docker Desktop Kubernetes cluster and Traefik are running. The frontend uses a relative API base path for this Kubernetes deployment.
-
-For direct troubleshooting, you can still use port-forwards in separate terminals:
-
-| Service | Port-forward command | Local URL |
-|---|---|---|
-| Backend API | `kubectl port-forward -n cloudforge service/backend 18000:8000` | http://localhost:18000/api/notes/ |
-| Prometheus | `kubectl port-forward -n cloudforge service/prometheus 19090:9090` | http://localhost:19090 |
-| Grafana | `kubectl port-forward -n cloudforge service/grafana 13001:3000` | http://localhost:13001 |
-| Alertmanager | `kubectl port-forward -n cloudforge service/alertmanager 19093:9093` | http://localhost:19093 |
-
-Keep each port-forward terminal open while using that direct endpoint.
-Stop a port-forward with `Ctrl+C`. Prometheus communicates with Alertmanager
-internally through the Kubernetes Service `alertmanager:9093`; that connection
-does not require a port-forward. These local ports reduce conflicts with
-Docker Compose services.
-
-### Verification performed
-
-- Six Kubernetes workloads were verified with all six pods `1/1 Running`.
-- The frontend returned HTTP 200 at `http://localhost/` through Traefik.
-- The Notes API returned HTTP 200 at `http://localhost/api/notes/`.
-- Notes could be created and remained visible after refreshing the frontend.
-- Test notes remained in the API response after deleting and recreating
-  the PostgreSQL pod.
-- The `postgres-data` PersistentVolumeClaim remained `Bound` to its 2 GiB
-  volume after the pod restart.
-- Prometheus successfully scraped the backend metrics endpoint.
-- Grafana displayed the `CloudForge Kubernetes Monitoring` dashboard with
-  request rate, p95 latency, 5xx error rate, and backend target health.
-- The `CloudForgeBackendDown` rule was restored and loaded successfully.
-  It remained inactive while the backend was healthy.
-- A temporary synthetic alert verified Prometheus rule evaluation,
-  Alertmanager receipt, and Gmail email delivery. The temporary test alert
-  and its test ConfigMap were removed afterward.
-- A real backend outage was tested by scaling the backend Deployment from
-  one replica to zero. Prometheus detected `up = 0`, and the
-  `CloudForgeBackendDown` alert fired after its 60-second pending period.
-- Alertmanager delivered the `[FIRING] CloudForgeBackendDown` email to Gmail.
-- The backend was restored to one replica. Prometheus detected `up = 1`,
-  and Alertmanager delivered the `[RESOLVED] CloudForgeBackendDown` email.
-- Final verification confirmed no active alerts in Prometheus or Alertmanager.
-
-### Useful commands
+Check the running backend identity:
 
 ```bash
-kubectl get deployments,services,pods -n cloudforge
-kubectl get pvc -n cloudforge
-kubectl get configmaps,secrets -n cloudforge
+kubectl exec -n cloudforge deployment/backend -- id
 ```
 
-**Local development and security notes:** Docker Desktop Kubernetes must be
-enabled and running. The database, Grafana, and SMTP Secrets must be
-created locally before applying the corresponding manifests. Do not commit
-Secret values, passwords, or other
-credentials. The current local manifests use development settings and must
-be hardened before any production deployment. The PostgreSQL PVC uses local
-Docker Desktop storage and is not a substitute for off-machine backups.
+Check the running frontend identity:
+
+```bash
+kubectl exec -n cloudforge deployment/frontend -- id
+```
+
+These security settings apply to the hardened application containers. They should not be interpreted as a claim that every container in the project uses identical security settings.
+
+---
 
 ## CI/CD Pipeline
 
-Workflow file: `.github/workflows/ci.yml`
+Workflow file:
 
-The pipeline runs on pushes and pull requests targeting `main`.
-
-### Pipeline stages
-
-1. **Backend checks:** installs Python dependencies and runs `python manage.py check`.
-2. **Frontend build:** installs Node.js dependencies with `npm ci` and runs `npm run build`.
-3. **Build and publish:** builds backend and frontend Docker images and pushes them to Amazon ECR.
-4. **AWS authentication:** assumes an IAM role through GitHub Actions OpenID Connect (OIDC).
-5. **Backend deployment:** triggers a new ECS deployment and waits for the backend service to stabilize.
-6. **Frontend deployment:** triggers a new ECS deployment and waits for the frontend service to stabilize.
-
-Images are tagged with `latest` and the source commit SHA.
-
-### Latest verification
-
-The CI/CD workflow completed successfully after updating the GitHub Actions
-versions and pinning all three jobs to `ubuntu-24.04`. The latest verified
-deployment returned HTTP 200 from both the frontend and notes API.
-
-These results describe the verification performed at that time; check the
-live endpoints and recent workflow runs to confirm their current status.
-
-### Deployment verification
-
-List recent workflow runs:
-
-```bash
-gh run list --branch main --limit 5
+```text
+.github/workflows/ci.yml
 ```
 
-Watch a specific run:
+The GitHub Actions workflow runs on pushes and pull requests targeting `main`.
 
-```bash
-gh run watch RUN_ID --exit-status
+### CI jobs
+
+**1. Backend Checks**
+
+- Sets up Python 3.12.
+- Installs backend requirements.
+- Runs Django system checks.
+- Runs the notes application tests.
+- Uses PostgreSQL 16 as a test service.
+
+**2. Frontend Build**
+
+- Sets up Node.js 18.
+- Installs dependencies using `npm ci`.
+- Builds the React application.
+
+**3. AWS publishing and deployment job**
+
+The AWS job is conditional:
+
+```yaml
+if: github.event_name == 'push' &&
+    github.ref == 'refs/heads/main' &&
+    vars.ENABLE_AWS_DEPLOY == 'true'
 ```
 
-Check ECS services:
+When explicitly enabled, this job:
 
-```bash
-aws ecs describe-services \
-  --cluster cloudforge-cluster \
-  --services cloudforge-backend cloudforge-frontend \
-  --region ap-south-2 \
-  --query 'services[*].{Name:serviceName,Desired:desiredCount,Running:runningCount,Pending:pendingCount}' \
-  --output table
+- Obtains AWS credentials using GitHub Actions OIDC.
+- Authenticates with Amazon ECR.
+- Builds and pushes backend and frontend images.
+- Updates the ECS backend and frontend services.
+- Waits for the ECS services to stabilize.
+
+When `ENABLE_AWS_DEPLOY` is unset or not equal to `true`, the AWS job is skipped.
+
+**Keep this variable disabled for local-only development and deployment.** Enabling it can trigger AWS publishing and ECS deployments.
+
+### Latest verified CI run
+
+Release commit:
+
+```text
+a8195a94eab232626809756a7532747ef7d52672
 ```
 
-Verify the public endpoints:
+Workflow run:
+
+```text
+42182510547
+```
+
+| Job | Result |
+|---|---|
+| Backend Checks | Success |
+| Frontend Build | Success |
+| Build and Push Docker Images to ECR | Skipped |
+
+GitHub Actions CLI commands:
 
 ```bash
-curl -sS -o /dev/null -w 'Frontend HTTP: %{http_code}\n' \
-  http://cloudforge-alb-174669174.ap-south-2.elb.amazonaws.com/
-
-curl -sS -w '\nHTTP: %{http_code}\n' \
-  http://cloudforge-alb-174669174.ap-south-2.elb.amazonaws.com/api/notes/
+gh run list --repo Vishalkumar0509/cloudforge --branch main --limit 5
 ```
+
+Inspect an individual run:
+
+```bash
+gh run view RUN_ID --repo Vishalkumar0509/cloudforge
+```
+
+---
+
+## Release Management
+
+CloudForge v1.0.0 is the first stable tagged release.
+
+### Release metadata
+
+| Item | Value |
+|---|---|
+| Application version | `1.0.0` |
+| Helm chart version | `1.0.0` |
+| Docker backend tag | `v1.0.0` |
+| Docker frontend tag | `v1.0.0` |
+| Git tag | `v1.0.0` |
+| Release commit | `a8195a94eab232626809756a7532747ef7d52672` |
+
+### Versioned images
+
+```text
+cloudforge-backend:v1.0.0
+cloudforge-frontend:v1.0.0
+```
+
+The v1.0.0 tags were created from the already-tested security-hardened images without rebuilding them.
+
+These images were verified on the local Docker Desktop Kubernetes node. They have not been published to ECR.
+
+### Release tag verification
+
+```bash
+git show v1.0.0
+```
+
+```bash
+git ls-remote --tags origin 'refs/tags/v1.0.0*'
+```
+
+The annotated Git tag is published to GitHub. A separate GitHub Release page and published container registry artifacts are separate distribution steps.
+
+---
+
+## Verification Results
+
+The following results were verified during the CloudForge v1.0.0 local Kubernetes release process on November 6, 2026.
+
+### Kubernetes workload status
+
+All six Deployments were verified with one ready replica:
+
+| Deployment | Result |
+|---|---|
+| Backend | 1/1 Ready |
+| Frontend | 1/1 Ready |
+| PostgreSQL | 1/1 Ready |
+| Prometheus | 1/1 Ready |
+| Grafana | 1/1 Ready |
+| Alertmanager | 1/1 Ready |
+
+### Application verification
+
+- React frontend returned HTTP 200 through Traefik.
+- Django Notes API returned HTTP 200.
+- Four existing notes were returned by the API.
+- Backend `/healthz/` endpoint returned HTTP 200.
+- Backend successfully connected to PostgreSQL.
+- Django reported no pending migrations.
+- Existing PostgreSQL records remained accessible after the backend image rollout.
+
+### Security verification
+
+- Backend actual runtime identity: UID/GID 10001.
+- Frontend actual runtime identity: UID/GID 1000.
+- Both application containers ran as non-root.
+- RuntimeDefault seccomp was configured.
+- Privilege escalation was disabled.
+- All Linux capabilities were dropped.
+- Both hardened image rollouts completed with zero restarts on their new pods.
+
+### GitOps and monitoring verification
+
+- Argo CD application reported `Synced` and `Healthy`.
+- Prometheus server readiness passed.
+- Prometheus backend and self-monitoring targets reported `up`.
+- Grafana health endpoint reported database `ok`.
+- Alertmanager readiness endpoint returned `OK`.
+
+These results describe the verified local release. They do not mean that the AWS deployment is currently online.
+
+---
+
+## Rollback Strategy
+
+CloudForge uses Git and Argo CD as the source of truth for Kubernetes application configuration.
+
+The known previous image tags from the v1.0.0 promotion are:
+
+```text
+cloudforge-backend:security-test
+cloudforge-frontend:security-test
+```
+
+Those tags pointed to the same tested image contents as the corresponding v1.0.0 tags during this release.
+
+### Recommended rollback approach
+
+If a future application release causes problems:
+
+1. Identify the last known-good image tags and Git commit.
+2. Change the affected Helm image tag in `helm/cloudforge/values.yaml` to the verified previous image.
+3. Increase the Helm chart version for the corrective release.
+4. Run `helm lint` and `helm template`.
+5. Commit and push the reviewed rollback configuration.
+6. Review the Argo CD diff.
+7. Manually sync the affected application Deployment.
+8. Verify Kubernetes readiness, application health and database records.
+
+Avoid using `kubectl rollout undo` as the permanent GitOps rollback method because Argo CD may reconcile the Deployment back to the configuration in Git.
+
+**Rollback procedure status:** The previous image tags are available locally. A separate rollback exercise has not been documented as completed.
+
+---
+
+## Historical AWS Deployment
+
+CloudForge was previously deployed in AWS region:
+
+```text
+ap-south-2
+```
+
+The historical architecture included:
+
+- Amazon ECS with AWS Fargate.
+- Amazon ECR repositories.
+- Application Load Balancer.
+- Amazon RDS for PostgreSQL.
+- VPC, subnets and security groups.
+- Terraform-managed infrastructure.
+- GitHub Actions OIDC authentication.
+
+The AWS application deployment has since been taken offline for cost control.
+
+The last documented state recorded the following actions:
+
+- Application Load Balancer deleted.
+- ECS services scaled to zero.
+- RDS instance stopped.
+
+There is no currently verified public AWS application endpoint.
+
+AWS should be considered a separate future deployment milestone. Before reactivating it, review infrastructure status, Terraform state, IAM permissions, image publishing and estimated costs.
+
+---
 
 ## Terraform and Infrastructure Management
 
-The `terraform/main.tf` file describes existing AWS resources, including:
+The Terraform configuration is maintained under:
 
-- VPC and three subnets
-- Four security groups
-- Amazon RDS PostgreSQL instance
-- Application Load Balancer
-- Frontend and backend target groups
-- HTTP listener and API routing rule
-- ECS cluster and two ECS services
-- Two ECR repositories
+```text
+terraform/
+```
 
-The existing infrastructure was imported into Terraform state rather than recreated. The configuration includes a dedicated backend health check and an ECS deployment circuit breaker with rollback enabled.
+The configuration describes historical AWS infrastructure, including networking, security groups, ECS services, ECR repositories, an Application Load Balancer and RDS PostgreSQL.
 
-### Validate the configuration
+### Terraform validation
 
 From the repository root:
 
@@ -434,73 +898,57 @@ From the repository root:
 cd terraform
 terraform init
 terraform validate
-terraform plan
 ```
 
-**Important:** Terraform state is not stored in this repository. A fresh clone does not automatically contain the existing infrastructure state. Restore the authorized state securely or import the existing resources into a correctly configured state before relying on a plan. Do not apply an unreviewed plan against existing infrastructure.
-
-Never commit Terraform state, credentials, production `.tfvars` files, or secret values.
-
-## Health Checks and Troubleshooting
-
-### Backend health endpoint
-
-The ALB checks `/healthz/` and expects HTTP 200. This separates infrastructure health checks from the notes API.
-
-### ECS deployment failures
-
-1. Inspect the GitHub Actions run and identify the failing step.
-2. Check ECS service events and deployment status.
-3. Verify the backend target group health.
-4. Inspect CloudWatch container logs.
-5. Confirm that the task can reach its required dependencies.
-
-The ECS deployment circuit breaker is configured to roll back failed deployments.
-
-Also verify that every subnet configured for an ECS service is in an
-Availability Zone enabled on its associated load balancer. A mismatch can
-prevent targets from registering successfully and cause health-check or
-deployment failures.
-
-### Useful commands
+Inspect the working state before any plan:
 
 ```bash
-# ECS service events
-aws ecs describe-services \
-  --cluster cloudforge-cluster \
-  --services cloudforge-backend \
-  --region ap-south-2 \
-  --query 'services[0].events[:10]' \
-  --output table
-
-# Backend target health
-aws elbv2 describe-target-health \
-  --target-group-arn arn:aws:elasticloadbalancing:ap-south-2:024265812756:targetgroup/cloudforge-backend-tg/a9d5c76a69e6bcf1 \
-  --region ap-south-2
+terraform state list
 ```
 
-## Security Notes
+A fresh Git clone does not contain the local Terraform state. Without the correct state, Terraform may propose creating or replacing infrastructure.
 
-- GitHub Actions uses OIDC to obtain AWS credentials without storing long-lived AWS access keys in the workflow.
-- The IAM role should follow least-privilege permissions.
-- Local `.env` files and Terraform state must remain untracked and protected.
-- Production Django settings should keep debug mode disabled and restrict allowed hosts and CORS origins.
-- The current public endpoints use HTTP. HTTPS and an associated certificate/domain are not documented as implemented.
-- Do not expose database credentials, Django secret keys, or other secrets in source code, workflow logs, screenshots, or documentation.
+**Never apply a Terraform plan without confirming the correct state and reviewing every proposed action.**
+
+Terraform state files, backup files, `.terraform/` and production variable files are excluded from Git.
+
+Never commit state files, credentials or production secrets.
+
+---
+
+## Security and Operational Notes
+
+- Never commit `.env` files or Kubernetes Secret values.
+- Keep Django secret keys and PostgreSQL credentials out of Git.
+- Protect Terraform state and backup files.
+- Use IAM least privilege for AWS operations.
+- Keep the AWS publishing/deployment workflow disabled during local-only work.
+- The current local application is served over HTTP.
+- Local Kubernetes PVC storage is not a substitute for off-machine database backups.
+- Docker Desktop and its Kubernetes cluster must be running for the local deployment to remain available.
+- Review image tags and Argo CD differences before deployment.
+- Do not delete PostgreSQL or Grafana PVCs as part of ordinary troubleshooting.
+
+---
 
 ## Current Scope and Limitations
 
-The project includes a React frontend, Django REST API, PostgreSQL,
-Docker Compose, a local Kubernetes deployment on Docker Desktop, and
-Prometheus/Grafana monitoring.
+CloudForge v1.0.0 demonstrates:
 
-The AWS ECS/Fargate deployment was previously verified but is currently
-offline. Local Kubernetes has been tested; deployment to Amazon EKS,
-Helm packaging, and Argo CD/GitOps are not claimed as implemented.
+- Full-stack application development.
+- Docker containerization.
+- Kubernetes deployment and persistent storage.
+- Helm chart management.
+- Argo CD GitOps workflows.
+- GitHub Actions CI.
+- Prometheus, Grafana and Alertmanager monitoring.
+- Container security hardening.
+- Versioned image and release management.
+- Historical AWS and Terraform infrastructure work.
 
-The project is intended for learning and demonstration. AWS resources may
-incur charges even when the application is not serving traffic. Review
-AWS Billing and verify resource status before enabling deployments.
+The current verified deployment is local Kubernetes on Docker Desktop. AWS deployment is offline, and the versioned application images are available in the local image store rather than a published container registry.
+
+---
 
 ## Author
 
