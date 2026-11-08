@@ -57,6 +57,11 @@ spec:
                 secretKeyRef:
                   name: grafana-smtp
                   key: password
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-smtp
+                  key: username
             - name: GF_SECURITY_ADMIN_USER
               valueFrom:
                 secretKeyRef:
@@ -72,9 +77,9 @@ spec:
             - name: GF_SMTP_HOST
               value: smtp.gmail.com:587
             - name: GF_SMTP_USER
-              value: {{ .Values.notifications.smtpUsername | quote }}
+              value: "$(SMTP_USERNAME)"
             - name: GF_SMTP_FROM_ADDRESS
-              value: {{ .Values.notifications.email | quote }}
+              value: "$(SMTP_USERNAME)"
             - name: GF_SMTP_FROM_NAME
               value: CloudForge Alerts
             - name: GF_SMTP_STARTTLS_POLICY

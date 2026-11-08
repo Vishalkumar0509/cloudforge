@@ -80,10 +80,6 @@ grafana:
       cpu: 300m
       memory: 256Mi
 
-notifications:
-  email: "alerts@example.invalid"
-  smtpUsername: "alerts@example.invalid"
-
 alertmanager:
   replicaCount: 1
   image:

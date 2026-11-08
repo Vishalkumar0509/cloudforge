@@ -1,15 +1,19 @@
 # CloudForge — Cloud-Native Application & DevOps Project
 
-**CloudForge v1.0.0** is a containerized full-stack application deployed on local Kubernetes using Docker Desktop, Helm and Argo CD.
+CloudForge is a containerized full-stack application deployed on local Kubernetes using Docker Desktop, Helm and Argo CD. The project has a formal **v1.0.0 release** and a subsequent **v1.0.1 frontend image iteration**.
 
 The project demonstrates application development, containerization, Kubernetes orchestration, GitOps-based deployments, CI/CD automation, monitoring, persistent storage and container security hardening.
 
 The application consists of a React frontend, Django REST API and PostgreSQL database, supported by Prometheus, Grafana and Alertmanager.
 
 > **Current deployment:** Local Docker Desktop Kubernetes
-> **Release:** v1.0.0
-> **Git tag:** v1.0.0
+> **Latest formal release:** v1.0.0
+> **Current frontend image:** v1.0.1
+> **Backend image:** v1.0.0
+> **Latest formal Git tag:** v1.0.0
 > **AWS deployment:** Previously verified; currently offline
+
+The v1.0.1 frontend update is not a separate formal GitHub release or Git tag.
 
 ---
 
@@ -316,7 +320,7 @@ The application references locally created Kubernetes Secrets. Create these secu
 | `cloudforge-db` | `POSTGRES_DB`, `POSTGRES_USERNAME`, `POSTGRES_PASSWORD` |
 | `django-secret-key` | `DJANGO_SECRET_KEY` |
 | `grafana-admin` | `admin-user`, `admin-password` |
-| `grafana-smtp` | `password` |
+| `grafana-smtp` | `username`, `password` |
 
 Use secure credentials and an interactive creation process. Never commit Secret values or include them in application manifests.
 
@@ -339,7 +343,7 @@ Frontend:
 ```bash
 docker build \
   --build-arg REACT_APP_API_URL= \
-  -t cloudforge-frontend:v1.0.0 \
+  -t cloudforge-frontend:v1.0.1 \
   ./app/frontend/notes-frontend
 ```
 
@@ -347,7 +351,7 @@ Verify the image tags:
 
 ```bash
 docker image inspect cloudforge-backend:v1.0.0
-docker image inspect cloudforge-frontend:v1.0.0
+docker image inspect cloudforge-frontend:v1.0.1
 ```
 
 Ensure the Docker Desktop Kubernetes node can see both images before deploying. The Helm configuration uses `IfNotPresent`, which allows Kubernetes to use locally available images.
@@ -389,14 +393,14 @@ helm/cloudforge/
 
 ### Release configuration
 
-The current release uses:
+The Helm chart metadata in `Chart.yaml` remains at version 1.0.0 with appVersion 1.0.0:
 
 ```yaml
 version: 1.0.0
 appVersion: "1.0.0"
 ```
 
-Application images:
+The current local application image configuration in `values.yaml` is:
 
 ```yaml
 backend:
@@ -408,9 +412,11 @@ backend:
 frontend:
   image:
     repository: cloudforge-frontend
-    tag: v1.0.0
+    tag: v1.0.1
     pullPolicy: IfNotPresent
 ```
+
+The frontend v1.0.1 image is a local iteration; it has not been published to ECR.
 
 ### Validate the Helm chart
 
@@ -501,6 +507,8 @@ Backend health endpoint:
 
 The monitoring stack includes the `CloudForge Kubernetes Monitoring` Grafana dashboard and the `CloudForgeBackendDown` Prometheus alert rule.
 
+The backend-down rule evaluates `up{job="cloudforge-backend"} == 0` with a one-minute pending period and critical severity. Its expected state is inactive while the backend is healthy.
+
 ### Local Kubernetes port-forwards
 
 Run each command in a separate terminal:
@@ -568,6 +576,14 @@ Alertmanager readiness:
 curl -sS http://localhost:19093/-/ready
 ```
 
+### SMTP email notifications
+
+Grafana and Alertmanager obtain SMTP credentials from the Kubernetes `grafana-smtp` Secret. The Secret contains `username` and `password` keys; credentials are not stored in the Helm values file or committed to Git.
+
+Alertmanager generates its runtime configuration using the Secret-provided SMTP username and password. Its configuration supports resolved notifications as well as firing notifications.
+
+A controlled Alertmanager test verified delivery of both a firing notification and its corresponding resolved notification by email. This was a controlled SMTP delivery test; it does not mean the actual backend-down alert rule was triggered.
+
 ### Docker Compose monitoring
 
 The separate Docker Compose monitoring stack provides Prometheus and Grafana for local development.
@@ -587,7 +603,7 @@ The Docker Compose monitoring environment is not the Kubernetes monitoring envir
 
 ## Container Security
 
-The CloudForge v1.0.0 backend and frontend images were hardened and verified in local Kubernetes.
+The CloudForge backend v1.0.0 and frontend v1.0.1 images were hardened and verified in local Kubernetes.
 
 ### Backend security
 
@@ -605,7 +621,7 @@ The CloudForge v1.0.0 backend and frontend images were hardened and verified in 
 
 | Setting | Value |
 |---|---|
-| Image | `cloudforge-frontend:v1.0.0` |
+| Image | `cloudforge-frontend:v1.0.1` |
 | User | `node` |
 | UID/GID | `1000` |
 | Non-root enforcement | Enabled |
@@ -693,7 +709,7 @@ When `ENABLE_AWS_DEPLOY` is unset or not equal to `true`, the AWS job is skipped
 
 **Keep this variable disabled for local-only development and deployment.** Enabling it can trigger AWS publishing and ECS deployments.
 
-### Latest verified CI run
+### v1.0.0 release CI run
 
 Release commit:
 
@@ -738,7 +754,8 @@ CloudForge v1.0.0 is the first stable tagged release.
 | Application version | `1.0.0` |
 | Helm chart version | `1.0.0` |
 | Docker backend tag | `v1.0.0` |
-| Docker frontend tag | `v1.0.0` |
+| Docker frontend tag at formal release | `v1.0.0` |
+| Current frontend image iteration | `v1.0.1` |
 | Git tag | `v1.0.0` |
 | Release commit | `a8195a94eab232626809756a7532747ef7d52672` |
 
@@ -746,12 +763,12 @@ CloudForge v1.0.0 is the first stable tagged release.
 
 ```text
 cloudforge-backend:v1.0.0
-cloudforge-frontend:v1.0.0
+cloudforge-frontend:v1.0.1
 ```
 
-The v1.0.0 tags were created from the already-tested security-hardened images without rebuilding them.
+The formal v1.0.0 backend and frontend tags were created from the already-tested security-hardened images without rebuilding them. The frontend was subsequently updated to the local v1.0.1 image iteration.
 
-These images were verified on the local Docker Desktop Kubernetes node. They have not been published to ECR.
+The current backend v1.0.0 and frontend v1.0.1 images were verified on the local Docker Desktop Kubernetes node. They have not been published to ECR.
 
 ### Release tag verification
 
@@ -769,7 +786,7 @@ The annotated Git tag is published to GitHub. A separate GitHub Release page and
 
 ## Verification Results
 
-The following results were verified during the CloudForge v1.0.0 local Kubernetes release process on November 6, 2026.
+The following results were verified during the CloudForge v1.0.0 local Kubernetes release process on November 6, 2026. Additional frontend, monitoring and SMTP verification was completed on November 7, 2026.
 
 ### Kubernetes workload status
 
@@ -794,6 +811,18 @@ All six Deployments were verified with one ready replica:
 - Django reported no pending migrations.
 - Existing PostgreSQL records remained accessible after the backend image rollout.
 
+### November 7 follow-up verification
+
+- Frontend Deployment updated to the local `cloudforge-frontend:v1.0.1` image and reached 1/1 ready.
+- Frontend Ingress and Notes API Ingress both returned HTTP 200.
+- The Notes application displayed five notes during browser verification.
+- Prometheus reported both configured scrape targets UP (2/2).
+- The `CloudForgeBackendDown` rule was loaded and healthy; it remained inactive while the backend was up.
+- Grafana dashboard included backend status, HTTP request rate, response status, memory and CPU panels.
+- Alertmanager accepted a controlled test alert, and both firing and resolved notification emails were received.
+
+**GitOps status note:** The SMTP-related Helm template and values changes, together with the targeted live Kubernetes updates, are local changes awaiting Git commit and GitOps reconciliation. The live SMTP verification does not mean the Git repository and Argo CD desired state are synchronized.
+
 ### Security verification
 
 - Backend actual runtime identity: UID/GID 10001.
@@ -806,7 +835,7 @@ All six Deployments were verified with one ready replica:
 
 ### GitOps and monitoring verification
 
-- Argo CD application reported `Synced` and `Healthy`.
+- Before the subsequent SMTP-related live changes, Argo CD reported `Synced` and `Healthy` following the frontend v1.0.1 rollout.
 - Prometheus server readiness passed.
 - Prometheus backend and self-monitoring targets reported `up`.
 - Grafana health endpoint reported database `ok`.
@@ -933,7 +962,7 @@ Never commit state files, credentials or production secrets.
 
 ## Current Scope and Limitations
 
-CloudForge v1.0.0 demonstrates:
+The formal CloudForge v1.0.0 release and subsequent v1.0.1 frontend iteration demonstrate:
 
 - Full-stack application development.
 - Docker containerization.

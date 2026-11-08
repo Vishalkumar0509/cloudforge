@@ -7,8 +7,8 @@ data:
   alertmanager.yml: |
     global:
       smtp_smarthost: 'smtp.gmail.com:587'
-      smtp_from: '{{ .Values.notifications.email }}'
-      smtp_auth_username: '{{ .Values.notifications.smtpUsername }}'
+      smtp_from: '__SMTP_USERNAME__'
+      smtp_auth_username: '__SMTP_USERNAME__'
       smtp_auth_password_file: '/etc/alertmanager/secrets/password'
       smtp_require_tls: true
 
@@ -22,7 +22,7 @@ data:
     receivers:
       - name: cloudforge-email
         email_configs:
-          - to: '{{ .Values.notifications.email }}'
+          - to: '__SMTP_USERNAME__'
             send_resolved: true
 ---
 apiVersion: apps/v1
@@ -45,6 +45,37 @@ spec:
     spec:
       securityContext:
         fsGroup: 65534
+      initContainers:
+        - name: configure-alertmanager
+          image: busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              escaped_username="$(printf '%s' "$SMTP_USERNAME" | sed 's/[\/&|]/\\&/g')"
+              sed "s|__SMTP_USERNAME__|${escaped_username}|g" /etc/alertmanager-template/alertmanager.yml > /etc/alertmanager-generated/alertmanager.yml
+          env:
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-smtp
+                  key: username
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: config-template
+              mountPath: /etc/alertmanager-template
+              readOnly: true
+            - name: config
+              mountPath: /etc/alertmanager-generated
       containers:
         - name: alertmanager
           image: "{{ .Values.alertmanager.image.repository }}:{{ .Values.alertmanager.image.tag }}"
@@ -61,14 +92,14 @@ spec:
           resources:
             {{- toYaml .Values.alertmanager.resources | nindent 12 }}
           args:
-            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --config.file=/etc/alertmanager-generated/alertmanager.yml
             - --storage.path=/alertmanager
           ports:
             - name: web
               containerPort: 9093
           volumeMounts:
             - name: config
-              mountPath: /etc/alertmanager
+              mountPath: /etc/alertmanager-generated
               readOnly: true
             - name: smtp-password
               mountPath: /etc/alertmanager/secrets
@@ -82,9 +113,11 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
       volumes:
-        - name: config
+        - name: config-template
           configMap:
             name: alertmanager-config
+        - name: config
+          emptyDir: {}
         - name: smtp-password
           secret:
             secretName: grafana-smtp
