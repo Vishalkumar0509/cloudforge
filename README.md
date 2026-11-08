@@ -35,7 +35,8 @@ The v1.0.1 frontend update is not a separate formal GitHub release or Git tag.
 14. [Historical AWS Deployment](#historical-aws-deployment)
 15. [Terraform and Infrastructure Management](#terraform-and-infrastructure-management)
 16. [Security and Operational Notes](#security-and-operational-notes)
-17. [Author](#author)
+17. [Current Scope and Limitations](#current-scope-and-limitations)
+18. [Author](#author)
 
 ---
 
@@ -365,7 +366,7 @@ The Traefik Ingress exposes the application at:
 | Frontend | http://localhost/ |
 | Notes API | http://localhost/api/notes/ |
 
-The backend health endpoint is `/healthz/`. The current Ingress routes `/` to the frontend and `/api/` to the backend, so test backend health directly through its Service port-forward.
+The backend health endpoint is `/healthz/`. The current Ingress routes `/` to the frontend and `/api/` to the backend. Backend health and metrics can also be accessed through the backend Service port-forward documented in the Monitoring and Alerting section.
 
 ---
 
@@ -474,6 +475,22 @@ kubectl get pvc -n cloudforge
 
 For deployments, review the Argo CD diff before performing a manual sync.
 
+### Access Argo CD locally
+
+Start a local port-forward:
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+Open the Argo CD interface at:
+
+```text
+https://localhost:8080
+```
+
+Keep the port-forward terminal open while using the interface. Stop it with `Ctrl+C`.
+
 **Important:** Do not use direct `helm upgrade` or `kubectl apply` to modify application resources managed by Argo CD. Use the GitOps workflow so the Git repository remains the source of truth.
 
 ---
@@ -528,7 +545,7 @@ kubectl port-forward -n cloudforge service/prometheus 19090:9090
 Grafana:
 
 ```bash
-kubectl port-forward -n cloudforge service/grafana 13001:3000
+kubectl port-forward -n cloudforge service/grafana 13003:3000
 ```
 
 Alertmanager:
@@ -545,7 +562,7 @@ Access the services:
 | Backend health | http://localhost:18000/healthz/ |
 | Backend metrics | http://localhost:18000/metrics |
 | Prometheus | http://localhost:19090 |
-| Grafana | http://localhost:13001 |
+| Grafana | http://localhost:13003 |
 | Alertmanager | http://localhost:19093 |
 
 Keep the port-forward terminal open while using the corresponding endpoint. Stop it with `Ctrl+C`.
@@ -567,7 +584,7 @@ curl -sS http://localhost:19090/api/v1/targets
 Grafana health:
 
 ```bash
-curl -sS http://localhost:13001/api/health
+curl -sS http://localhost:13003/api/health
 ```
 
 Alertmanager readiness:
@@ -729,6 +746,12 @@ Workflow run:
 | Frontend Build | Success |
 | Build and Push Docker Images to ECR | Skipped |
 
+Latest follow-up CI run on November 8, 2026:
+
+- Commit: `8e83acb`
+- Workflow run: `42461034073`
+- Result: Successful
+
 GitHub Actions CLI commands:
 
 ```bash
@@ -821,7 +844,23 @@ All six Deployments were verified with one ready replica:
 - Grafana dashboard included backend status, HTTP request rate, response status, memory and CPU panels.
 - Alertmanager accepted a controlled test alert, and both firing and resolved notification emails were received.
 
-**GitOps status note:** The SMTP-related Helm template and values changes, together with the targeted live Kubernetes updates, are local changes awaiting Git commit and GitOps reconciliation. The live SMTP verification does not mean the Git repository and Argo CD desired state are synchronized.
+**GitOps status:** On November 8, 2026, the SMTP-related Helm template and values changes were committed and pushed in commit `8e83acb` (`fix(monitoring): secure SMTP configuration and document alerts`). Argo CD subsequently reported `Synced` and `Healthy` at revision `8e83acbd59dc881b91e05555b11ddb2dd1b4233c`. At the time of this GitOps verification, the local Git branch matched `origin/main` and the working tree was clean. This README documentation update is a subsequent, separate change.
+
+### November 8 follow-up verification
+
+The following checks were completed against the current local Kubernetes deployment:
+
+- Frontend Ingress returned HTTP 200.
+- Notes API Ingress returned HTTP 200.
+- All six application and monitoring Deployments were verified with one ready replica each.
+- Prometheus reported both active scrape targets as UP (2/2): `cloudforge-backend` and `prometheus`.
+- Grafana health API reported database `ok` on version `11.4.0`.
+- Alertmanager readiness endpoint returned HTTP 200 and `OK`.
+- The `CloudForgeBackendDown` rule was loaded with health `ok`, state `inactive`, and a 60-second pending period.
+- Argo CD reported `Synced` and `Healthy` at the latest Git commit.
+- Git working tree was clean after removal of an accidental empty untracked file.
+
+The inactive backend-down rule is expected while the backend target is healthy. The actual backend-down condition was not deliberately triggered during this verification.
 
 ### Security verification
 
