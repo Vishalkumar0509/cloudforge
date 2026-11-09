@@ -50,6 +50,12 @@ postgres:
 
 prometheus:
   replicaCount: 1
+  persistence:
+    enabled: true
+    size: 2Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: ""
   image:
     repository: prom/prometheus
     tag: v2.55.1

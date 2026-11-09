@@ -21,6 +21,26 @@ data:
         metrics_path: /metrics
         static_configs:
           - targets: ["backend:8000"]
+{{- if .Values.prometheus.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data
+  namespace: {{ include "cloudforge.namespace" . }}
+  labels:
+    {{- include "cloudforge.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.prometheus.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.prometheus.persistence.size | quote }}
+  {{- with .Values.prometheus.persistence.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -81,7 +101,12 @@ spec:
           configMap:
             name: prometheus-config
         - name: data
+          {{- if .Values.prometheus.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: prometheus-data
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         - name: rules
           configMap:
             name: prometheus-rules
