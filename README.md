@@ -6,12 +6,14 @@ The project demonstrates application development, containerization, Kubernetes o
 
 The application consists of a React frontend, Django REST API and PostgreSQL database, supported by Prometheus, Grafana and Alertmanager.
 
-> **Current deployment:** Local Docker Desktop Kubernetes
-> **Latest formal release:** v1.0.0
-> **Current frontend image:** v1.0.1
-> **Backend image:** v1.0.0
-> **Latest formal Git tag:** v1.0.0
-> **AWS deployment:** Previously verified; currently offline
+| Item | Status |
+|---|---|
+| Current deployment | Local Docker Desktop Kubernetes |
+| Latest formal release | v1.0.0 |
+| Current frontend image | v1.0.1 |
+| Backend image | v1.0.0 |
+| Latest formal Git tag | v1.0.0 |
+| AWS deployment | Previously verified; currently offline |
 
 The v1.0.1 frontend update is not a separate formal GitHub release or Git tag.
 
