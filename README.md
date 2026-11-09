@@ -15,9 +15,33 @@ The application consists of a React frontend, Django REST API and PostgreSQL dat
 
 The v1.0.1 frontend update is not a separate formal GitHub release or Git tag.
 
+
+
+## Screenshots
+
+### CloudForge application
+![CloudForge application](docs/screenshots/application.png)
+
+### Argo CD GitOps dashboard
+![Argo CD GitOps dashboard](docs/screenshots/argocd-gitops.png)
+
+### Grafana application health
+![Grafana application health dashboard](docs/screenshots/grafana-health.png)
+
+### Grafana backend performance
+![Grafana backend performance dashboard](docs/screenshots/grafana-performance.png)
+
+### Kubernetes workloads
+![CloudForge Kubernetes workloads](docs/screenshots/kubernetes-workloads.png)
+
+### Prometheus targets
+![Prometheus targets showing active scrape status](docs/screenshots/prometheus-targets.png)
+
 ---
 
 ## Table of Contents
+
+- [Screenshots](#screenshots)
 
 1. [Architecture](#architecture)
 2. [Technology Stack](#technology-stack)
