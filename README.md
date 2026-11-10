@@ -913,6 +913,18 @@ The inactive backend-down rule is expected while the backend target is healthy. 
 
 The simultaneous termination pattern strongly suggests a shared Docker Desktop/WSL2 Kubernetes runtime interruption rather than independent application failures. The exact trigger was not established. The workloads were healthy again during verification; no manual restart was performed solely to clear historical restart counts.
 
+### November 10 final reliability verification
+
+- Added Kubernetes liveness probes for PostgreSQL (`pg_isready`), Grafana (`/api/health`) and Alertmanager (`/-/ready`) in commit `2353b2e` (`feat: add liveness probes for stateful services`).
+- Helm validation completed successfully: `helm lint helm/cloudforge` reported zero chart failures, and Helm template rendering succeeded.
+- Argo CD reported `Synced` and `Healthy` at revision `2353b2e7091d6d64be497f7d6c12f36eacc7a4c4`.
+- All six CloudForge Deployments had one available replica, and all six CloudForge pods were Ready. All four 2Gi ReadWriteOnce PVCs remained Bound.
+- PostgreSQL persistence was tested through the application API. A temporary test note was created, verified through the API and directly in PostgreSQL, and remained present after a PostgreSQL Deployment restart. The API returned HTTP 200 after the restart. The temporary test record was then removed; the five pre-existing notes remained.
+- A PostgreSQL custom-format backup archive was created and its table of contents was successfully inspected with `pg_restore --list` (86 entries). A full restore into a separate database has not yet been tested.
+- GitHub Actions CI passed for commit `2353b2e` (run `42832329810`, approximately 40 seconds).
+
+These checks validate the local Docker Desktop Kubernetes environment. They do not establish production readiness, an off-machine backup, or a tested database recovery procedure. The AWS deployment remains offline.
+
 ### Security verification
 
 - Backend actual runtime identity: UID/GID 10001.
@@ -925,7 +937,7 @@ The simultaneous termination pattern strongly suggests a shared Docker Desktop/W
 
 ### GitOps and monitoring verification
 
-- Before the subsequent SMTP-related live changes, Argo CD reported `Synced` and `Healthy` following the frontend v1.0.1 rollout.
+- At the November 10 final verification, Argo CD reported `Synced` and `Healthy` at revision `2353b2e7091d6d64be497f7d6c12f36eacc7a4c4`.
 - Prometheus server readiness passed.
 - Prometheus backend and self-monitoring targets reported `up`.
 - Grafana health endpoint reported database `ok`.
