@@ -24,6 +24,25 @@ data:
         email_configs:
           - to: '__SMTP_USERNAME__'
             send_resolved: true
+{{- if .Values.alertmanager.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alertmanager-data
+  namespace: {{ include "cloudforge.namespace" . }}
+  labels:
+    {{- include "cloudforge.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.alertmanager.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.alertmanager.persistence.size | quote }}
+  {{- with .Values.alertmanager.persistence.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -125,7 +144,12 @@ spec:
               - key: password
                 path: password
         - name: data
+          {{- if .Values.alertmanager.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: alertmanager-data
+          {{- else }}
           emptyDir: {}
+          {{- end }}
 ---
 apiVersion: v1
 kind: Service

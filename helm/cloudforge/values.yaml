@@ -88,6 +88,12 @@ grafana:
 
 alertmanager:
   replicaCount: 1
+  persistence:
+    enabled: true
+    size: 2Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: ""
   image:
     repository: prom/alertmanager
     tag: v0.28.1
