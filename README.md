@@ -335,8 +335,21 @@ The deployment includes:
 | PostgreSQL | Deployment, Service and PVC |
 | Prometheus | Deployment, Service and ConfigMaps |
 | Grafana | Deployment, Service and PVC |
-| Alertmanager | Deployment, Service and ConfigMaps |
+| Alertmanager | Deployment, Service, ConfigMaps and PVC |
 | Application routing | Traefik Ingress |
+
+### Persistent storage
+
+The local Kubernetes deployment uses persistent volume claims for stateful services:
+
+| PVC | Component | Capacity | Access mode | Verification |
+|---|---|---:|---|---|
+| `postgres-data` | PostgreSQL | 2Gi | ReadWriteOnce | Bound |
+| `prometheus-data` | Prometheus | 2Gi | ReadWriteOnce | Bound |
+| `grafana-data` | Grafana | 2Gi | ReadWriteOnce | Bound |
+| `alertmanager-data` | Alertmanager | 2Gi | ReadWriteOnce | Bound |
+
+These claims use the local Docker Desktop Kubernetes storage provisioner. Local PVCs are not off-machine backups.
 
 ### Required Kubernetes Secrets
 
@@ -887,6 +900,18 @@ The following checks were completed against the current local Kubernetes deploym
 - Git working tree was clean after removal of an accidental empty untracked file.
 
 The inactive backend-down rule is expected while the backend target is healthy. The actual backend-down condition was not deliberately triggered during this verification.
+
+### November 10 follow-up: persistence and runtime incident
+
+- Alertmanager persistent storage was added to the Helm chart and committed in `0377ec4` (`feat: add persistent storage for Alertmanager`).
+- Argo CD reported `Synced` and `Healthy` at revision `0377ec4cdb4fbfa635cc9ad975054ef51fc3c9b5`.
+- All four application and monitoring PVCs (`postgres-data`, `prometheus-data`, `grafana-data` and `alertmanager-data`) were Bound at 2Gi with ReadWriteOnce access.
+- Alertmanager's `/-/ready` endpoint returned `OK`; its Deployment had one available replica.
+- All six application and monitoring Deployments were running with one ready replica each.
+
+**Runtime incident:** On November 10, 2026, at approximately 05:52 UTC, all nine observed Kubernetes system containers and multiple CloudForge application containers terminated with `Error` and exit code `255` within the same one-second interval. The Kubernetes node subsequently reported Ready, with MemoryPressure, DiskPressure and PIDPressure all False. The WSL2 Ubuntu and Docker Desktop distributions were both running during follow-up checks.
+
+The simultaneous termination pattern strongly suggests a shared Docker Desktop/WSL2 Kubernetes runtime interruption rather than independent application failures. The exact trigger was not established. The workloads were healthy again during verification; no manual restart was performed solely to clear historical restart counts.
 
 ### Security verification
 
