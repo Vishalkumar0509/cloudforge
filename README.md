@@ -246,7 +246,7 @@ The `k8s/` directory contains the separate Kubernetes manifest-based configurati
 - Docker Desktop
 - Docker Compose plugin
 - Python 3.12 (optional for local development outside Docker)
-- Node.js 18 (optional for frontend development outside Docker)
+- Node.js 24 (optional for frontend development outside Docker)
 
 ### 1. Clone the repository
 
@@ -739,7 +739,7 @@ The GitHub Actions workflow runs on pushes and pull requests targeting `main`.
 
 **2. Frontend Build**
 
-- Sets up Node.js 18.
+- Sets up Node.js 24.
 - Installs dependencies using `npm ci`.
 - Builds the React application.
 
