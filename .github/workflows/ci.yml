@@ -82,10 +82,14 @@ jobs:
         working-directory: app/frontend/notes-frontend
         run: npm ci
 
-      - name: Build React application
+      - name: Run frontend tests
+        working-directory: app/frontend/notes-frontend
+        run: npm test
+
+      - name: Build Vite application
         working-directory: app/frontend/notes-frontend
         env:
-          REACT_APP_API_URL: ''
+          VITE_API_URL: ''
         run: npm run build
 
 
@@ -156,7 +160,7 @@ jobs:
           tags: ${{ steps.frontend-meta.outputs.tags }}
           labels: ${{ steps.frontend-meta.outputs.labels }}
           build-args: |
-            REACT_APP_API_URL=
+            VITE_API_URL=
 
       - name: Deploy backend to ECS
         run: |
