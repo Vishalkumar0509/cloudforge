@@ -382,7 +382,7 @@ Frontend:
 
 ```bash
 docker build \
-  --build-arg REACT_APP_API_URL= \
+  --build-arg VITE_API_URL= \
   -t cloudforge-frontend:v1.0.1 \
   ./app/frontend/notes-frontend
 ```

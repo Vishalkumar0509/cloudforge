@@ -8,10 +8,9 @@ RUN npm ci
 
 COPY . .
 
-ARG REACT_APP_API_URL=
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ARG VITE_API_URL=
+ENV VITE_API_URL=$VITE_API_URL
 
-ENV DISABLE_ESLINT_PLUGIN=true
 
 RUN npm run build \
     && chown -R node:node /app
