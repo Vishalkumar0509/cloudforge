@@ -20,7 +20,7 @@ frontend:
   replicaCount: 1
   image:
     repository: cloudforge-frontend
-    tag: v1.0.1
+    tag: v1.0.2
     pullPolicy: IfNotPresent
   service:
     port: 3000
