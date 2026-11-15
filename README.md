@@ -72,40 +72,63 @@ The backend v1.0.1 and frontend v1.0.3 are subsequent local image iterations. Th
 ### Current local Kubernetes architecture
 
 ```mermaid
-flowchart TD
-    User[User Browser]
+flowchart TB
+    Browser["User Browser"]
 
     subgraph K8S["Docker Desktop Kubernetes"]
-        Traefik[Traefik Ingress]
+        subgraph TRAEFIK_NS["traefik namespace"]
+            Traefik["Traefik Ingress<br/>host: localhost"]
+        end
 
-        Frontend[React Frontend]
-        Backend[Django REST API]
-        DB[(PostgreSQL)]
+        subgraph CLOUD_NS["cloudforge namespace"]
+            Frontend["React Frontend<br/>Service: 3000"]
+            Backend["Django REST API<br/>Service: 8000"]
+            DB[("PostgreSQL<br/>Service: 5432")]
 
-        Prom[Prometheus]
-        Grafana[Grafana]
-        Alert[Alertmanager]
+            Prom["Prometheus<br/>Service: 9090"]
+            Grafana["Grafana<br/>Service: 3000"]
+            Alert["Alertmanager<br/>Service: 9093"]
 
-        Traefik -->|/| Frontend
-        Traefik -->|/api/*| Backend
-        Backend --> DB
+            DBPVC[("postgres-data<br/>2 GiB hostpath PVC")]
+            PromPVC[("prometheus-data<br/>2 GiB hostpath PVC")]
+            GrafanaPVC[("grafana-data<br/>2 GiB hostpath PVC")]
+            AlertPVC[("alertmanager-data<br/>2 GiB hostpath PVC")]
 
-        Prom -->|Scrapes /metrics| Backend
-        Prom -->|Alert notifications| Alert
-        Grafana -->|Queries metrics| Prom
+            Backend --> DB
+            Prom -->|"Scrapes /metrics every 15s"| Backend
+            Prom -->|"Scrapes itself"| Prom
+            Grafana -->|"Queries default datasource"| Prom
+            Prom -->|"Configured alerts"| Alert
+
+            DB --- DBPVC
+            Prom --- PromPVC
+            Grafana --- GrafanaPVC
+            Alert --- AlertPVC
+        end
+
+        subgraph ARGO_NS["argocd namespace"]
+            Argo["Argo CD<br/>Manual sync"]
+        end
     end
 
-    GitHub[GitHub Repository]
-    Actions[GitHub Actions CI]
-    Argo[Argo CD]
-    Helm[Helm Chart]
+    Browser --> Traefik
+    Traefik -->|"/"| Frontend
+    Traefik -->|"/api"| Backend
 
-    User --> Traefik
+    SMTP["External SMTP Relay"]
+    Alert -->|"Email notifications"| SMTP
 
-    GitHub --> Actions
-    GitHub --> Argo
-    Argo --> Helm
-    Helm --> K8S
+    subgraph GITOPS["GitHub CI and GitOps"]
+        GitHub["GitHub Repository<br/>main branch"]
+        Actions["GitHub Actions<br/>CI checks"]
+        Helm["Helm Chart<br/>helm/cloudforge"]
+
+        GitHub --> Actions
+        GitHub -->|"Watches repository"| Argo
+        Argo -->|"Renders chart"| Helm
+    end
+
+    Helm -->|"Applies manifests<br/>after manual sync"| K8S
 ```
 
 ### Application request flow
