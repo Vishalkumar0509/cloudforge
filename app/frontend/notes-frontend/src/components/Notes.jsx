@@ -12,12 +12,11 @@ import {
     Paper,
 } from '@mui/material';
 
-
-
 const Notes = () => {
     const [notes, setNotes] = useState([]);
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [editingNoteId, setEditingNoteId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -28,22 +27,14 @@ const Notes = () => {
 
             const response = await axios.get('/api/notes/');
 
-            console.log('Notes API response:', response.data);
-
             if (Array.isArray(response.data)) {
                 setNotes(response.data);
             } else {
-                console.error(
-                    'Expected an array of notes, received:',
-                    response.data
-                );
-
                 setNotes([]);
                 setError('Invalid response received from the server.');
             }
         } catch (error) {
             console.error('Failed to fetch notes:', error);
-
             setNotes([]);
             setError('Failed to load notes from the backend.');
         } finally {
@@ -55,7 +46,14 @@ const Notes = () => {
         fetchNotes();
     }, [fetchNotes]);
 
-    const addNote = async (event) => {
+    const resetForm = () => {
+        setTitle('');
+        setContent('');
+        setEditingNoteId(null);
+        setError('');
+    };
+
+    const handleSubmit = async (event) => {
         event.preventDefault();
 
         if (!title.trim() || !content.trim()) {
@@ -63,29 +61,73 @@ const Notes = () => {
             return;
         }
 
+        const payload = {
+            title: title.trim(),
+            content: content.trim(),
+        };
+
         try {
             setError('');
 
-            const response = await axios.post('/api/notes/', {
-                title: title.trim(),
-                content: content.trim(),
-            });
+            if (editingNoteId !== null) {
+                const response = await axios.put(
+                    `/api/notes/${editingNoteId}/`,
+                    payload
+                );
 
-            console.log('Add note response:', response.data);
+                setNotes((currentNotes) =>
+                    currentNotes.map((note) =>
+                        note.id === editingNoteId ? response.data : note
+                    )
+                );
+            } else {
+                const response = await axios.post('/api/notes/', payload);
 
-            setNotes((currentNotes) => {
-                if (!Array.isArray(currentNotes)) {
-                    return [response.data];
-                }
+                setNotes((currentNotes) => [
+                    ...currentNotes,
+                    response.data,
+                ]);
+            }
 
-                return [...currentNotes, response.data];
-            });
-
-            setTitle('');
-            setContent('');
+            resetForm();
         } catch (error) {
-            console.error('Failed to add note:', error);
-            setError('Failed to add the note.');
+            console.error('Failed to save note:', error);
+            setError(
+                editingNoteId !== null
+                    ? 'Failed to update the note.'
+                    : 'Failed to add the note.'
+            );
+        }
+    };
+
+    const startEditing = (note) => {
+        setEditingNoteId(note.id);
+        setTitle(note.title);
+        setContent(note.content);
+        setError('');
+    };
+
+    const deleteNote = async (noteId) => {
+        const confirmed = window.confirm(
+            'Are you sure you want to delete this note?'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            setError('');
+            await axios.delete(`/api/notes/${noteId}/`);
+
+            setNotes((currentNotes) =>
+                currentNotes.filter((note) => note.id !== noteId)
+            );
+
+            if (editingNoteId === noteId) {
+                resetForm();
+            }
+        } catch (error) {
+            console.error('Failed to delete note:', error);
+            setError('Failed to delete the note.');
         }
     };
 
@@ -102,23 +144,20 @@ const Notes = () => {
         >
             <Container maxWidth="lg">
                 <Grid container spacing={5}>
-
-                    {/* Add Note Section */}
                     <Grid item xs={12} md={6}>
                         <Typography
                             variant="h4"
                             gutterBottom
-                            sx={{
-                                textAlign: 'center',
-                                marginBottom: 4,
-                            }}
+                            sx={{ textAlign: 'center', marginBottom: 4 }}
                         >
-                            Add a New Note
+                            {editingNoteId !== null
+                                ? 'Edit Note'
+                                : 'Add a New Note'}
                         </Typography>
 
                         <Box
                             component="form"
-                            onSubmit={addNote}
+                            onSubmit={handleSubmit}
                             sx={{
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -133,8 +172,9 @@ const Notes = () => {
                                 fullWidth
                                 label="Title"
                                 value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                variant="outlined"
+                                onChange={(event) =>
+                                    setTitle(event.target.value)
+                                }
                             />
 
                             <TextField
@@ -143,28 +183,35 @@ const Notes = () => {
                                 multiline
                                 rows={4}
                                 value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                variant="outlined"
+                                onChange={(event) =>
+                                    setContent(event.target.value)
+                                }
                             />
 
                             <Button
                                 type="submit"
                                 variant="contained"
                                 color="primary"
-                                sx={{
-                                    alignSelf: 'center',
-                                }}
                             >
-                                Add Note
+                                {editingNoteId !== null
+                                    ? 'Update Note'
+                                    : 'Add Note'}
                             </Button>
+
+                            {editingNoteId !== null && (
+                                <Button
+                                    type="button"
+                                    variant="outlined"
+                                    onClick={resetForm}
+                                >
+                                    Cancel
+                                </Button>
+                            )}
 
                             {error && (
                                 <Typography
                                     color="error"
-                                    sx={{
-                                        textAlign: 'center',
-                                        marginTop: 1,
-                                    }}
+                                    sx={{ textAlign: 'center', marginTop: 1 }}
                                 >
                                     {error}
                                 </Typography>
@@ -172,49 +219,28 @@ const Notes = () => {
                         </Box>
                     </Grid>
 
-                    {/* Notes List Section */}
                     <Grid item xs={12} md={6}>
                         <Typography
                             variant="h4"
                             gutterBottom
-                            sx={{
-                                textAlign: 'center',
-                                marginBottom: 4,
-                            }}
+                            sx={{ textAlign: 'center', marginBottom: 4 }}
                         >
                             Notes List
                         </Typography>
 
                         {loading ? (
-                            <Typography
-                                sx={{
-                                    textAlign: 'center',
-                                }}
-                            >
+                            <Typography sx={{ textAlign: 'center' }}>
                                 Loading notes...
                             </Typography>
                         ) : notes.length === 0 ? (
-                            <Typography
-                                sx={{
-                                    textAlign: 'center',
-                                }}
-                            >
+                            <Typography sx={{ textAlign: 'center' }}>
                                 No notes available.
                             </Typography>
                         ) : (
                             <Grid container spacing={3}>
                                 {notes.map((note) => (
-                                    <Grid
-                                        item
-                                        xs={12}
-                                        key={note.id}
-                                    >
-                                        <Card
-                                            elevation={3}
-                                            sx={{
-                                                height: '100%',
-                                            }}
-                                        >
+                                    <Grid item xs={12} key={note.id}>
+                                        <Card elevation={3}>
                                             <CardContent>
                                                 <Typography
                                                     variant="h6"
@@ -235,9 +261,7 @@ const Notes = () => {
                                                         variant="caption"
                                                         color="text.secondary"
                                                         display="block"
-                                                        sx={{
-                                                            marginTop: 2,
-                                                        }}
+                                                        sx={{ marginTop: 2 }}
                                                     >
                                                         Created:{' '}
                                                         {new Date(
@@ -245,6 +269,35 @@ const Notes = () => {
                                                         ).toLocaleString()}
                                                     </Typography>
                                                 )}
+
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        gap: 1,
+                                                        marginTop: 2,
+                                                    }}
+                                                >
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={() =>
+                                                            startEditing(note)
+                                                        }
+                                                    >
+                                                        Edit
+                                                    </Button>
+
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        color="error"
+                                                        onClick={() =>
+                                                            deleteNote(note.id)
+                                                        }
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </Box>
                                             </CardContent>
                                         </Card>
                                     </Grid>
@@ -252,7 +305,6 @@ const Notes = () => {
                             </Grid>
                         )}
                     </Grid>
-
                 </Grid>
             </Container>
         </Paper>
