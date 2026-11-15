@@ -1,6 +1,6 @@
 # CloudForge — Cloud-Native Application & DevOps Project
 
-CloudForge is a containerized full-stack application deployed on local Kubernetes using Docker Desktop, Helm and Argo CD. The project has a formal **v1.0.0 release** and a subsequent **v1.0.1 frontend image iteration**.
+CloudForge is a containerized full-stack application deployed on local Kubernetes using Docker Desktop, Helm and Argo CD. The project has a formal **v1.0.0 release** and subsequent **v1.0.1 backend** and **v1.0.3 frontend image iterations**.
 
 The project demonstrates application development, containerization, Kubernetes orchestration, GitOps-based deployments, CI/CD automation, monitoring, persistent storage and container security hardening.
 
@@ -10,12 +10,13 @@ The application consists of a React frontend, Django REST API and PostgreSQL dat
 |---|---|
 | Current deployment | Local Docker Desktop Kubernetes |
 | Latest formal release | v1.0.0 |
-| Current frontend image | v1.0.1 |
-| Backend image | v1.0.0 |
+| Current backend image | v1.0.1 |
+| Current frontend image | v1.0.3 |
 | Latest formal Git tag | v1.0.0 |
-| AWS deployment | Previously verified; currently offline |
+| Argo CD status | Synced and Healthy |
+| AWS deployment | Offline; AWS infrastructure work is historical |
 
-The v1.0.1 frontend update is not a separate formal GitHub release or Git tag.
+The backend v1.0.1 and frontend v1.0.3 are subsequent local image iterations. They are not separate formal GitHub releases or Git tags. The Helm chart metadata remains at version 1.0.0.
 
 
 
@@ -154,11 +155,13 @@ The CloudForge Argo CD application uses manual synchronization rather than autom
 ## Application Features
 
 - React-based frontend for managing notes.
-- Django REST API for retrieving and creating notes.
+- Full CRUD functionality: create, list, retrieve, update and delete notes.
+- Django REST Framework API with list/create and detail/update/delete endpoints.
 - PostgreSQL database persistence.
+- Frontend form validation and error handling.
 - Docker-based frontend and backend images.
 - Kubernetes Deployments, Services and Ingress.
-- PostgreSQL and Grafana persistent storage.
+- Persistent storage for PostgreSQL and monitoring components.
 - Helm-based application configuration.
 - Argo CD GitOps integration.
 - GitHub Actions backend and frontend CI checks.
@@ -374,7 +377,7 @@ Backend:
 
 ```bash
 docker build \
-  -t cloudforge-backend:v1.0.0 \
+  -t cloudforge-backend:v1.0.1 \
   ./app/backend
 ```
 
@@ -383,15 +386,15 @@ Frontend:
 ```bash
 docker build \
   --build-arg VITE_API_URL= \
-  -t cloudforge-frontend:v1.0.1 \
+  -t cloudforge-frontend:v1.0.3 \
   ./app/frontend/notes-frontend
 ```
 
 Verify the image tags:
 
 ```bash
-docker image inspect cloudforge-backend:v1.0.0
-docker image inspect cloudforge-frontend:v1.0.1
+docker image inspect cloudforge-backend:v1.0.1
+docker image inspect cloudforge-frontend:v1.0.3
 ```
 
 Ensure the Docker Desktop Kubernetes node can see both images before deploying. The Helm configuration uses `IfNotPresent`, which allows Kubernetes to use locally available images.
@@ -446,17 +449,17 @@ The current local application image configuration in `values.yaml` is:
 backend:
   image:
     repository: cloudforge-backend
-    tag: v1.0.0
+    tag: v1.0.1
     pullPolicy: IfNotPresent
 
 frontend:
   image:
     repository: cloudforge-frontend
-    tag: v1.0.1
+    tag: v1.0.3
     pullPolicy: IfNotPresent
 ```
 
-The frontend v1.0.1 image is a local iteration; it has not been published to ECR.
+The backend v1.0.1 and frontend v1.0.3 images are local iterations; they have not been published to ECR.
 
 ### Validate the Helm chart
 
@@ -947,6 +950,27 @@ These results describe the verified local release. They do not mean that the AWS
 
 ---
 
+### November 15 CRUD release verification
+
+- Backend image v1.0.1 and frontend image v1.0.3 deployed successfully to local Docker Desktop Kubernetes.
+- Backend automated tests passed: 8/8.
+- Frontend automated tests passed: 6/6.
+- Backend and frontend Kubernetes rollouts completed successfully.
+- Both Deployments reached 1/1 ready replicas.
+- Frontend and Notes API returned HTTP 200 through Traefik.
+- Argo CD reported Synced and Healthy at commit `04d2012`.
+- Browser-based CRUD verification passed:
+  - Create: passed.
+  - Read: passed.
+  - Update: passed.
+  - Delete: passed.
+- The temporary CRUD verification note was deleted after testing.
+- The six pre-existing notes remained visible after the CRUD tests.
+
+These results were verified on the local Kubernetes environment. AWS deployment remains offline.
+
+---
+
 ## Rollback Strategy
 
 CloudForge uses Git and Argo CD as the source of truth for Kubernetes application configuration.
@@ -1064,9 +1088,10 @@ Never commit state files, credentials or production secrets.
 
 ## Current Scope and Limitations
 
-The formal CloudForge v1.0.0 release and subsequent v1.0.1 frontend iteration demonstrate:
+The formal CloudForge v1.0.0 release and subsequent backend and frontend image iterations demonstrate:
 
 - Full-stack application development.
+- Full CRUD note management.
 - Docker containerization.
 - Kubernetes deployment and persistent storage.
 - Helm chart management.
