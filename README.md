@@ -392,6 +392,71 @@ Use secure credentials and an interactive creation process. Never commit Secret 
 
 If the Secrets already exist, do not overwrite them merely to repeat the deployment.
 
+For a fresh cluster, create the namespace:
+
+```bash
+kubectl create namespace cloudforge
+```
+
+Create the required Secrets securely. This example stores credentials in temporary files with restricted permissions. Secret values are not passed as command-line arguments.
+
+```bash
+(
+  set -eu
+  umask 077
+  secret_dir="$(mktemp -d)"
+  trap 'rm -rf "$secret_dir"' EXIT
+
+  read -r -p "Database name: " DB_NAME
+  read -r -p "Database username: " DB_USER
+  read -r -s -p "Database password: " DB_PASSWORD
+  printf '\n'
+  printf '%s' "$DB_NAME" > "$secret_dir/POSTGRES_DB"
+  printf '%s' "$DB_USER" > "$secret_dir/POSTGRES_USERNAME"
+  printf '%s' "$DB_PASSWORD" > "$secret_dir/POSTGRES_PASSWORD"
+  kubectl create secret generic cloudforge-db -n cloudforge \
+    --from-file=POSTGRES_DB="$secret_dir/POSTGRES_DB" \
+    --from-file=POSTGRES_USERNAME="$secret_dir/POSTGRES_USERNAME" \
+    --from-file=POSTGRES_PASSWORD="$secret_dir/POSTGRES_PASSWORD"
+  unset DB_PASSWORD
+
+  read -r -s -p "Django secret key: " DJANGO_KEY
+  printf '\n'
+  printf '%s' "$DJANGO_KEY" > "$secret_dir/DJANGO_SECRET_KEY"
+  kubectl create secret generic django-secret-key -n cloudforge \
+    --from-file=DJANGO_SECRET_KEY="$secret_dir/DJANGO_SECRET_KEY"
+  unset DJANGO_KEY
+
+  read -r -p "Grafana admin username: " GRAFANA_USER
+  read -r -s -p "Grafana admin password: " GRAFANA_PASSWORD
+  printf '\n'
+  printf '%s' "$GRAFANA_USER" > "$secret_dir/admin-user"
+  printf '%s' "$GRAFANA_PASSWORD" > "$secret_dir/admin-password"
+  kubectl create secret generic grafana-admin -n cloudforge \
+    --from-file=admin-user="$secret_dir/admin-user" \
+    --from-file=admin-password="$secret_dir/admin-password"
+  unset GRAFANA_PASSWORD
+
+  read -r -p "SMTP email address: " SMTP_USER
+  read -r -s -p "SMTP app password: " SMTP_PASSWORD
+  printf '\n'
+  printf '%s' "$SMTP_USER" > "$secret_dir/username"
+  printf '%s' "$SMTP_PASSWORD" > "$secret_dir/password"
+  kubectl create secret generic grafana-smtp -n cloudforge \
+    --from-file=username="$secret_dir/username" \
+    --from-file=password="$secret_dir/password"
+  unset SMTP_PASSWORD
+)
+```
+
+Verify Secret names without displaying their values:
+
+```bash
+kubectl get secrets -n cloudforge
+```
+
+Do not recreate existing Secrets. Use a unique Django secret key and an SMTP app password where required by your email provider.
+
 ### Build local release images
 
 For a fresh local environment, build the application images:
