@@ -8,6 +8,8 @@ metadata:
     {{- include "cloudforge.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.postgres.replicaCount }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: postgres
