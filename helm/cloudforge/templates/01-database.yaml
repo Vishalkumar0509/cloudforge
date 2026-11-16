@@ -22,9 +22,6 @@ spec:
           imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
             seccompProfile:
               type: RuntimeDefault
           resources:
