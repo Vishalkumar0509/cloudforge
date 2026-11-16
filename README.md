@@ -31,8 +31,8 @@ The backend v1.0.1 and frontend v1.0.3 are subsequent local image iterations. Th
 ### Grafana application health
 ![Grafana application health dashboard](docs/screenshots/grafana-health.png)
 
-### Grafana backend performance
-![Grafana backend performance dashboard](docs/screenshots/grafana-performance.png)
+### Grafana Kubernetes monitoring
+![Grafana Kubernetes monitoring dashboard](docs/screenshots/grafana-performance.png)
 
 ### Kubernetes workloads
 ![CloudForge Kubernetes workloads](docs/screenshots/kubernetes-workloads.png)
