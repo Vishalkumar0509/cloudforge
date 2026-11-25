@@ -5,7 +5,7 @@ metadata:
   name: postgres-data
   namespace: {{ include "cloudforge.namespace" . }}
   annotations:
-    argocd.argoproj.io/sync-options: Delete=false
+    argocd.argoproj.io/sync-options: Delete=false,Prune=false
   labels:
     {{- include "cloudforge.labels" . | nindent 4 }}
 spec:
