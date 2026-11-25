@@ -1,3 +1,24 @@
+{{- if .Values.postgres.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: {{ include "cloudforge.namespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+  labels:
+    {{- include "cloudforge.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.postgres.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistence.size | quote }}
+  {{- with .Values.postgres.persistence.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

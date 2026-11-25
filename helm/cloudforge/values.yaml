@@ -33,6 +33,12 @@ frontend:
       memory: 256Mi
 
 postgres:
+  persistence:
+    enabled: true
+    size: 2Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: hostpath
   replicaCount: 1
   image:
     repository: postgres
@@ -55,7 +61,7 @@ prometheus:
     size: 2Gi
     accessModes:
       - ReadWriteOnce
-    storageClassName: ""
+    storageClassName: hostpath
   image:
     repository: prom/prometheus
     tag: v2.55.1
@@ -71,6 +77,12 @@ prometheus:
       memory: 512Mi
 
 grafana:
+  persistence:
+    enabled: true
+    size: 2Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: hostpath
   replicaCount: 1
   image:
     repository: grafana/grafana
@@ -93,7 +105,7 @@ alertmanager:
     size: 2Gi
     accessModes:
       - ReadWriteOnce
-    storageClassName: ""
+    storageClassName: hostpath
   image:
     repository: prom/alertmanager
     tag: v0.28.1

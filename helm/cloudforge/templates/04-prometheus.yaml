@@ -28,6 +28,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: prometheus-data
   namespace: {{ include "cloudforge.namespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
   labels:
     {{- include "cloudforge.labels" . | nindent 4 }}
 spec:

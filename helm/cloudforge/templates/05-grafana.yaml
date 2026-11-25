@@ -13,6 +13,27 @@ data:
         url: http://prometheus:9090
         isDefault: true
         editable: true
+{{- if .Values.grafana.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  namespace: {{ include "cloudforge.namespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+  labels:
+    {{- include "cloudforge.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.grafana.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.grafana.persistence.size | quote }}
+  {{- with .Values.grafana.persistence.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
