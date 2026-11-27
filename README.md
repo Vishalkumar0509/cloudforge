@@ -28,11 +28,16 @@ The backend v1.0.1 and frontend v1.0.3 are subsequent local image iterations. Th
 ### Argo CD GitOps dashboard
 ![Argo CD GitOps dashboard](docs/screenshots/argocd-gitops.png)
 
-### Grafana application health
-![Grafana application health dashboard](docs/screenshots/grafana-health.png)
+### Grafana Local Monitoring
+![Grafana Local Monitoring dashboard](docs/screenshots/grafana-health.png)
 
 ### Grafana Kubernetes monitoring
-![Grafana Kubernetes monitoring dashboard](docs/screenshots/grafana-performance.png)
+
+**Part 1**
+![Grafana Kubernetes monitoring dashboard - part 1](docs/screenshots/grafana-performance-1.png)
+
+**Part 2**
+![Grafana Kubernetes monitoring dashboard - part 2](docs/screenshots/grafana-performance-2.png)
 
 ### Kubernetes workloads
 ![CloudForge Kubernetes workloads](docs/screenshots/kubernetes-workloads.png)
