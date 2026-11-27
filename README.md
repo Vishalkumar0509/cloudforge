@@ -53,17 +53,18 @@ The backend v1.0.1 and frontend v1.0.3 are subsequent local image iterations. Th
 5. [Run Locally with Docker Compose](#run-locally-with-docker-compose)
 6. [Kubernetes Deployment](#kubernetes-deployment)
 7. [Helm and Argo CD GitOps](#helm-and-argo-cd-gitops)
-8. [Monitoring and Alerting](#monitoring-and-alerting)
-9. [Container Security](#container-security)
-10. [CI/CD Pipeline](#cicd-pipeline)
-11. [Release Management](#release-management)
-12. [Verification Results](#verification-results)
-13. [Rollback Strategy](#rollback-strategy)
-14. [Historical AWS Deployment](#historical-aws-deployment)
-15. [Terraform and Infrastructure Management](#terraform-and-infrastructure-management)
-16. [Security and Operational Notes](#security-and-operational-notes)
-17. [Current Scope and Limitations](#current-scope-and-limitations)
-18. [Author](#author)
+8. [PostgreSQL Backup and Disaster Recovery](#postgresql-backup-and-disaster-recovery)
+9. [Monitoring and Alerting](#monitoring-and-alerting)
+10. [Container Security](#container-security)
+11. [CI/CD Pipeline](#cicd-pipeline)
+12. [Release Management](#release-management)
+13. [Verification Results](#verification-results)
+14. [Rollback Strategy](#rollback-strategy)
+15. [Historical AWS Deployment](#historical-aws-deployment)
+16. [Terraform and Infrastructure Management](#terraform-and-infrastructure-management)
+17. [Security and Operational Notes](#security-and-operational-notes)
+18. [Current Scope and Limitations](#current-scope-and-limitations)
+19. [Author](#author)
 
 ---
 
@@ -625,6 +626,155 @@ Keep the port-forward terminal open while using the interface. Stop it with `Ctr
 
 ---
 
+## PostgreSQL Backup and Disaster Recovery
+
+CloudForge uses scheduled PostgreSQL custom-format backups for its local
+Docker Desktop Kubernetes database.
+
+### Backup locations
+
+Backups are maintained in two filesystem locations on the same computer:
+
+- WSL backup directory: `~/.cloudforge-backups/postgres/`
+- Windows backup directory: `CloudForgeBackups/postgres/` under the Windows user profile.
+
+The directory structure contains:
+
+```text
+postgres/
+├── daily/
+│   ├── cloudforge-k8s-mydatabase-YYYY-MM-DD_HHMMSS.dump
+│   └── corresponding .sha256 files
+├── weekly/
+│   ├── weekly backup archives
+│   └── corresponding .sha256 files
+└── backup.log
+```
+
+These are two copies on the same physical computer, not independent
+off-site backups.
+
+### Backup format and validation
+
+The backup script uses PostgreSQL `pg_dump` with:
+
+- Custom archive format (`-Fc`).
+- Ownership excluded (`--no-owner`).
+- ACLs excluded (`--no-acl`).
+- A non-empty archive check.
+- `pg_restore --list` archive integrity validation.
+- SHA256 checksum generation and verification.
+
+The script uses a lock to prevent overlapping runs. On exit, it removes
+an unfinished local `.partial` archive. Failures after the archive is
+finalized may leave an archive or copy that requires inspection.
+
+### Schedule and startup recovery
+
+The systemd timer is named:
+
+`cloudforge-postgres-backup.timer`
+
+Its configuration includes:
+
+| Setting | Value |
+|---|---|
+| Daily schedule | 20:30 UTC (02:00 IST the following day) |
+| Startup trigger | 2 minutes after the WSL systemd instance starts (`OnBootSec=2min`) |
+| Missed-run handling | `Persistent=true` |
+| Backup service | `cloudforge-postgres-backup.service` |
+| Service timeout | 15 minutes |
+| Retry | On failure, every 2 minutes; limited to 10 start attempts within 30 minutes |
+
+The recovery script:
+
+1. Checks that the Kubernetes context is `docker-desktop`.
+2. Checks whether a verified backup pair already exists for the current IST date.
+3. Waits for the PostgreSQL Deployment and pod to become ready.
+4. Checks PostgreSQL connection readiness.
+5. Runs the existing backup script if a verified backup pair is not already available.
+
+The recovery script creates backups; it does not automatically restore or
+overwrite the live database.
+
+Windows Task Scheduler also contains a user-logon task that initializes
+Ubuntu WSL. Docker Desktop is configured to launch at Windows sign-in.
+
+### Retention policy
+
+| Backup type | Retention |
+|---|---:|
+| Daily | 7 archives |
+| Weekly | 4 archives |
+
+Weekly snapshots are created on Sundays. Retention removes older archive
+files and their associated checksum files.
+
+### Backup inventory — November 27, 2026
+
+The latest verified inventory contains:
+
+| Location | Daily archives | Weekly archives | Checksum results |
+|---|---:|---:|---:|
+| WSL backup directory | 7 | 1 | 8/8 passed |
+| Windows backup directory | 7 | 1 | 8/8 passed |
+
+All 16 checksum files across both locations passed `sha256sum -c`.
+
+The latest daily archive is `cloudforge-k8s-mydatabase-2026-11-27_091656.dump` (31,358 bytes). Its checksum passed in both WSL and Windows backup directories. The separately documented full restore test used the November 25 archive.
+
+### Restore testing approach
+
+Test restores against a separate temporary database, never directly against the live application database.
+
+The November 25 restore verification below documents the completed isolated restore test.
+
+
+### November 25, 2026 restore verification
+
+The November 25 backup was restored successfully into a separate temporary
+PostgreSQL database.
+
+Verification included:
+
+- SHA256 validation of the backup archive.
+- `pg_restore --list` archive inspection.
+- Full restore using `pg_restore --exit-on-error`.
+- Successful restore in a single transaction.
+- Row-count comparison across all 11 Django tables.
+- Exact comparison of all six `notes_note` records, including IDs,
+  titles, content and timestamps.
+- Removal of the temporary restore-test database after verification.
+
+All 11 table row counts matched the source database, and all six note
+records matched exactly. The live application database was not overwritten.
+
+### PostgreSQL pod restart verification
+
+The PostgreSQL pod was deleted and Kubernetes created a replacement pod.
+The original `postgres-data` PVC remained Bound with the same PVC UID and
+volume identity.
+
+After replacement:
+
+- PostgreSQL readiness check succeeded.
+- All six application notes remained present.
+- The Notes API returned HTTP 200.
+- The replacement PostgreSQL pod was Ready with zero restarts at verification.
+
+This verified local persistent-volume recovery in addition to the separate
+backup restore test.
+
+### Backup limitations and security
+
+- The WSL and Windows copies reside on the same physical computer.
+- They do not protect against complete host-disk failure or site loss.
+- The backup scripts do not encrypt archive files.
+- Protect the host account, filesystem permissions and backup directories.
+- Consider an encrypted off-site copy for stronger disaster recovery.
+- A full restore was tested in a separate database; automatic production
+  restoration has not been configured or tested.
+
 ## Monitoring and Alerting
 
 CloudForge includes two separate monitoring environments:
@@ -750,13 +900,13 @@ The Docker Compose monitoring environment is not the Kubernetes monitoring envir
 
 ## Container Security
 
-The CloudForge backend v1.0.0 and frontend v1.0.1 images were hardened and verified in local Kubernetes.
+The CloudForge backend v1.0.1 and frontend v1.0.3 images are the current deployed local Kubernetes image iterations. The formal v1.0.0 release images remain historical release artifacts.
 
 ### Backend security
 
 | Setting | Value |
 |---|---|
-| Image | `cloudforge-backend:v1.0.0` |
+| Image | `cloudforge-backend:v1.0.1` |
 | User | `cloudforge` |
 | UID/GID | `10001` |
 | Non-root enforcement | Enabled |
@@ -768,7 +918,7 @@ The CloudForge backend v1.0.0 and frontend v1.0.1 images were hardened and verif
 
 | Setting | Value |
 |---|---|
-| Image | `cloudforge-frontend:v1.0.1` |
+| Image | `cloudforge-frontend:v1.0.3` |
 | User | `node` |
 | UID/GID | `1000` |
 | Non-root enforcement | Enabled |
@@ -908,7 +1058,8 @@ CloudForge v1.0.0 is the first stable tagged release.
 | Helm chart version | `1.0.0` |
 | Docker backend tag | `v1.0.0` |
 | Docker frontend tag at formal release | `v1.0.0` |
-| Current frontend image iteration | `v1.0.1` |
+| Current backend image iteration | `v1.0.1` |
+| Current frontend image iteration | `v1.0.3` |
 | Git tag | `v1.0.0` |
 | Release commit | `a8195a94eab232626809756a7532747ef7d52672` |
 
@@ -921,7 +1072,7 @@ cloudforge-frontend:v1.0.1
 
 The formal v1.0.0 backend and frontend tags were created from the already-tested security-hardened images without rebuilding them. The frontend was subsequently updated to the local v1.0.1 image iteration.
 
-The current backend v1.0.0 and frontend v1.0.1 images were verified on the local Docker Desktop Kubernetes node. They have not been published to ECR.
+The current deployed backend v1.0.1 and frontend v1.0.3 images are local Docker Desktop Kubernetes images. They have not been published to ECR. The formal v1.0.0 release tags remain historical release artifacts.
 
 ### Release tag verification
 
@@ -1011,7 +1162,7 @@ The simultaneous termination pattern strongly suggests a shared Docker Desktop/W
 - Argo CD reported `Synced` and `Healthy` at revision `2353b2e7091d6d64be497f7d6c12f36eacc7a4c4`.
 - All six CloudForge Deployments had one available replica, and all six CloudForge pods were Ready. All four 2Gi ReadWriteOnce PVCs remained Bound.
 - PostgreSQL persistence was tested through the application API. A temporary test note was created, verified through the API and directly in PostgreSQL, and remained present after a PostgreSQL Deployment restart. The API returned HTTP 200 after the restart. The temporary test record was then removed; the five pre-existing notes remained.
-- A PostgreSQL custom-format backup archive was created and its table of contents was successfully inspected with `pg_restore --list` (86 entries). A full restore into a separate database has not yet been tested.
+- A PostgreSQL custom-format backup archive was created and its table of contents was successfully inspected with `pg_restore --list` (86 entries). At the time of this November 10 verification, a full restore into a separate database had not yet been tested. This was subsequently completed successfully on November 25; see the November 25 verification section below.
 - GitHub Actions CI passed for commit `2353b2e` (run `42832329810`, approximately 40 seconds).
 
 These checks validate the local Docker Desktop Kubernetes environment. They do not establish production readiness, an off-machine backup, or a tested database recovery procedure. The AWS deployment remains offline.
@@ -1056,6 +1207,45 @@ These results describe the verified local release. They do not mean that the AWS
 - The six pre-existing notes remained visible after the CRUD tests.
 
 These results were verified on the local Kubernetes environment. AWS deployment remains offline.
+
+---
+
+### November 25 final local reliability verification
+
+The following additional checks were completed on November 25, 2026:
+
+- All six CloudForge Deployments reported one available replica.
+- All four persistent volume claims remained Bound at 2Gi.
+- The PostgreSQL replacement pod became Ready and retained all six notes.
+- The Notes API returned HTTP 200 and returned all six expected records.
+- The PostgreSQL backup archive passed checksum and archive inspection.
+- A full isolated restore succeeded, and all 11 table row counts matched.
+- All six note records matched exactly between the source and restored databases.
+- Daily and weekly WSL and Windows backup checksums passed: 16/16.
+- The systemd backup timer was enabled and active.
+- The backup service's latest recorded result was successful.
+- Argo CD reported `Healthy` and `Synced` at revision
+  `55a91b23e8bd45ac87ea99cf64678cac18551842`.
+- All 21 Argo CD-managed resources reported `Synced`.
+- The Git working tree was clean, and local `main` matched `origin/main`.
+- The live backend and frontend images were `v1.0.1` and `v1.0.3`.
+- The Notes API returned HTTP 200 during final verification.
+
+**Runtime observation:** Five application and monitoring pods showed
+historical container terminations with exit code `255` at approximately
+04:57 UTC on November 25. The Kubernetes node was subsequently Ready,
+without memory, disk or PID pressure. The previous frontend container log
+was no longer available. A shared Docker Desktop or WSL2 runtime interruption
+is a possible explanation, but the exact cause was not established.
+
+**Startup testing limitation:** Windows logon startup settings, Docker
+Desktop startup configuration, WSL2 status and systemd timer configuration
+were inspected. A complete fresh Windows/WSL boot-recovery exercise has
+not yet been performed.
+
+These checks validate the local Docker Desktop Kubernetes environment.
+They do not establish an AWS deployment or an off-site disaster-recovery
+capability.
 
 ---
 
